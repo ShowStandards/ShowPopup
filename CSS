@@ -1,1 +1,235 @@
+body {
+  font-family: 'Quicksand', Arial, sans-serif !important;
+  margin: 0 !important;
+  padding: 20px !important;
+}
+
+.wrapper {
+  max-width: 1100px;
+  margin: 40px auto !important;
+  background: #ffffff !important;
+  padding: 24px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(70,137,134,.22) !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,.06) !important;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.summary-card {
+  background: rgba(70,137,134,.05);
+  border: 1px solid rgba(70,137,134,.18);
+  border-radius: 12px;
+  padding: 14px;
+  text-align: center;
+}
+
+.summary-card strong {
+  display: block;
+  font-size: 26px;
+  color: #2f6f6f;
+}
+
+.records-table,
+.titles-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: #ffffff;
+  border: 1px solid rgba(70,137,134,.18);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.records-table th,
+.records-table td,
+.titles-table th,
+.titles-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid rgba(70,137,134,.14);
+  text-align: left;
+  font-size: 14px;
+  color: #111;
+}
+
+.records-table th,
+.titles-table th {
+  background: #2f6f6f;
+  color: #ffffff;
+  font-family: 'Barlow SC', 'Oswald', sans-serif;
+  font-size: 13px;
+  letter-spacing: .08em;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.records-table tr:last-child td,
+.titles-table tr:last-child td {
+  border-bottom: none;
+}
+
+.records-table tr:hover,
+.titles-table tr:hover {
+  background: rgba(70,137,134,.08);
+}
+
+.titles-table td:last-child,
+.titles-table th:last-child {
+  text-align: right;
+}
+
+.empty {
+  padding: 18px;
+  background: rgba(70,137,134,.04);
+  border: 1px solid rgba(70,137,134,.18);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.record-section-title {
+  margin-top: 30px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(70,137,134,.18);
+  font-family: 'Barlow SC', 'Oswald', sans-serif;
+  color: #2f6f6f;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.registered-name {
+  font-family: 'Uchen', serif;
+  font-size: 24px;
+  color: #2f6f6f;
+  background: rgba(70,137,134,.05);
+  border: 1px solid rgba(70,137,134,.18);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+details.record-details {
+  margin-top: 20px;
+  border: 1px solid rgba(70,137,134,.18);
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+details.record-details summary {
+  cursor: pointer;
+  list-style: none;
+  padding: 15px 18px;
+  background: rgba(70,137,134,.08);
+  color: #2f6f6f;
+  font-family: 'Barlow SC', 'Oswald', sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(70,137,134,.12);
+}
+
+details.record-details summary::-webkit-details-marker {
+  display: none;
+}
+
+details.record-details summary::before {
+  content: none !important;
+  display: none !important;
+}
+
+details.record-details[open] summary::before {
+  content: none !important;
+  display: none !important;
+}
+
+.record-details-content {
+  padding: 18px;
+}
+
+/* =========================================================
+   DARK MODE SUPPORT â€” SHOW RECORDS POPUP
+   ========================================================= */
+
+body.ss-dark-mode,
+html body.ss-dark-mode {
+  background: #171c1c !important;
+  color: #e7eeee !important;
+}
+
+body.ss-dark-mode .wrapper {
+  background: #232b2b !important;
+  border-color: #3d4a49 !important;
+  box-shadow: 0 8px 22px rgba(0,0,0,.25) !important;
+  color: #e7eeee !important;
+}
+
+body.ss-dark-mode h1,
+body.ss-dark-mode .record-section-title,
+body.ss-dark-mode .registered-name,
+body.ss-dark-mode details.record-details summary,
+body.ss-dark-mode .summary-card strong {
+  color: #9fcfca !important;
+}
+
+body.ss-dark-mode .summary-card,
+body.ss-dark-mode .registered-name,
+body.ss-dark-mode .empty,
+body.ss-dark-mode details.record-details,
+body.ss-dark-mode .records-table,
+body.ss-dark-mode .titles-table {
+  background: #1f2727 !important;
+  border-color: #3d4a49 !important;
+  color: #e7eeee !important;
+}
+
+body.ss-dark-mode .records-table td,
+body.ss-dark-mode .titles-table td {
+  background: #232b2b !important;
+  border-color: #3d4a49 !important;
+  color: #e7eeee !important;
+}
+
+body.ss-dark-mode .records-table tr:hover td,
+body.ss-dark-mode .titles-table tr:hover td {
+  background: #2b3535 !important;
+}
+
+body.ss-dark-mode .records-table th,
+body.ss-dark-mode .titles-table th {
+  background: #2f6f6f !important;
+  color: #ffffff !important;
+  border-color: #3d4a49 !important;
+}
+
+body.ss-dark-mode details.record-details summary {
+  background: #1b2323 !important;
+  border-color: #3d4a49 !important;
+}
+
+body.ss-dark-mode .record-details-content {
+  background: #232b2b !important;
+  color: #e7eeee !important;
+}
+
+body.ss-dark-mode .empty {
+  color: #b5c4c2 !important;
+}
+
+body.ss-dark-mode .summary-card {
+  background: #1b2323 !important;
+}
+
+body.ss-dark-mode a {
+  color: #9fcfca !important;
+}
 
