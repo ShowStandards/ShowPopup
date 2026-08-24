@@ -3760,10 +3760,14 @@ async function loadRecords() {
   }
 }
 
-// Works whether this file loads normally or is dynamically
-// inserted by the cache-busting GitHub HTML.
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", loadRecords, { once: true });
-} else {
+function bootShowRecords() {
+  if (window.__showRecordsBooted) return;
+  window.__showRecordsBooted = true;
   loadRecords();
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", bootShowRecords, { once: true });
+} else {
+  bootShowRecords();
 }
