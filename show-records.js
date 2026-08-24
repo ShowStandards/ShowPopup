@@ -376,6 +376,26 @@ function highestTitle(points, rules) {
     })[0] || null;
 }
 
+function hasMaxedBaseTitle(points, rules) {
+  const totalPoints = Number(points || 0);
+  const ladder = (rules || []).filter(r => Number(r.points_required || 0) > 0);
+  if (!ladder.length) return false;
+
+  const repeatableRules = ladder.filter(r => isTrueValue(r.repeatable));
+  const nonRepeatableRules = ladder.filter(r => !isTrueValue(r.repeatable));
+
+  /*
+    "Maxed" means the animal has completed the ordinary/base ladder.
+    If a repeatable/multiplier rule exists, its starting threshold is the
+    final base milestone. Otherwise the highest normal rule is the milestone.
+  */
+  const maxBaseThreshold = repeatableRules.length
+    ? Math.min(...repeatableRules.map(r => Number(r.points_required || 0)))
+    : Math.max(...nonRepeatableRules.map(r => Number(r.points_required || 0)));
+
+  return Number.isFinite(maxBaseThreshold) && totalPoints >= maxBaseThreshold;
+}
+
 function toRoman(num) {
   const romans = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
   return romans[num] || String(num);
@@ -3064,6 +3084,7 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
     required: confTitle ? Number(confTitle.points_required || 0) : Number(confNext?.points_required || 0),
     earned: conformationPoints,
     status: confTitle ? "Earned" : "In Progress",
+    maxed: hasMaxedBaseTitle(conformationPoints, confRules),
     sort: 0
   });
 
@@ -3094,6 +3115,7 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
       required: title ? Number(title.points_required || 0) : Number(next?.points_required || 0),
       earned: Number(total.points || 0),
       status: title ? "Earned" : "In Progress",
+      maxed: hasMaxedBaseTitle(total.points, rules),
       sort: 1
     });
   });
@@ -3157,7 +3179,7 @@ function renderPointBasedTitles(rows) {
             ${rows.map(row => `
               <tr>
                 <td>${escapeHtml(row.activity)}</td>
-                <td>${escapeHtml(row.title)}</td>
+                <td>${escapeHtml(row.title)}${row.maxed ? ` <span class="max-title-ribbon" title="Maximum base title reached" aria-label="Maximum base title reached">🏅</span>` : ""}</td>
                 <td>${row.required ? Number(row.required).toLocaleString() : ""}</td>
                 <td>${Number(row.earned || 0).toLocaleString()}</td>
                 <td><span class="status-pill ${row.status === "Earned" ? "earned" : "progress"}">${escapeHtml(row.status)}</span></td>
