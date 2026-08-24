@@ -1,235 +1,59 @@
-body {
-  font-family: 'Quicksand', Arial, sans-serif !important;
-  margin: 0 !important;
-  padding: 20px !important;
+:root{
+  --accent:#468986;--accent-dark:#2f6f6f;--text:#172424;--muted:#6b7878;
+  --border:rgba(70,137,134,.22);--soft:rgba(70,137,134,.055);--panel:#fff;
 }
-
-.wrapper {
-  max-width: 1100px;
-  margin: 40px auto !important;
-  background: #ffffff !important;
-  padding: 24px !important;
-  border-radius: 14px !important;
-  border: 1px solid rgba(70,137,134,.22) !important;
-  box-shadow: 0 8px 22px rgba(0,0,0,.06) !important;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
-  gap: 12px;
-  margin-bottom: 25px;
-}
-
-.summary-card {
-  background: rgba(70,137,134,.05);
-  border: 1px solid rgba(70,137,134,.18);
-  border-radius: 12px;
-  padding: 14px;
-  text-align: center;
-}
-
-.summary-card strong {
-  display: block;
-  font-size: 26px;
-  color: #2f6f6f;
-}
-
-.records-table,
-.titles-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  background: #ffffff;
-  border: 1px solid rgba(70,137,134,.18);
-  border-radius: 12px;
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-
-.records-table th,
-.records-table td,
-.titles-table th,
-.titles-table td {
-  padding: 11px 12px;
-  border-bottom: 1px solid rgba(70,137,134,.14);
-  text-align: left;
-  font-size: 14px;
-  color: #111;
-}
-
-.records-table th,
-.titles-table th {
-  background: #2f6f6f;
-  color: #ffffff;
-  font-family: 'Barlow SC', 'Oswald', sans-serif;
-  font-size: 13px;
-  letter-spacing: .08em;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.records-table tr:last-child td,
-.titles-table tr:last-child td {
-  border-bottom: none;
-}
-
-.records-table tr:hover,
-.titles-table tr:hover {
-  background: rgba(70,137,134,.08);
-}
-
-.titles-table td:last-child,
-.titles-table th:last-child {
-  text-align: right;
-}
-
-.empty {
-  padding: 18px;
-  background: rgba(70,137,134,.04);
-  border: 1px solid rgba(70,137,134,.18);
-  border-radius: 12px;
-  margin-bottom: 20px;
-  color: #6b7280;
-  font-style: italic;
-}
-
-.record-section-title {
-  margin-top: 30px;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid rgba(70,137,134,.18);
-  font-family: 'Barlow SC', 'Oswald', sans-serif;
-  color: #2f6f6f;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-.registered-name {
-  font-family: 'Uchen', serif;
-  font-size: 24px;
-  color: #2f6f6f;
-  background: rgba(70,137,134,.05);
-  border: 1px solid rgba(70,137,134,.18);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
-  text-align: center;
-}
-
-details.record-details {
-  margin-top: 20px;
-  border: 1px solid rgba(70,137,134,.18);
-  border-radius: 12px;
-  background: #ffffff;
-  overflow: hidden;
-}
-
-details.record-details summary {
-  cursor: pointer;
-  list-style: none;
-  padding: 15px 18px;
-  background: rgba(70,137,134,.08);
-  color: #2f6f6f;
-  font-family: 'Barlow SC', 'Oswald', sans-serif;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  font-size: 14px;
-  border-bottom: 1px solid rgba(70,137,134,.12);
-}
-
-details.record-details summary::-webkit-details-marker {
-  display: none;
-}
-
-details.record-details summary::before {
-  content: none !important;
-  display: none !important;
-}
-
-details.record-details[open] summary::before {
-  content: none !important;
-  display: none !important;
-}
-
-.record-details-content {
-  padding: 18px;
-}
-
-/* =========================================================
-   DARK MODE SUPPORT â€” SHOW RECORDS POPUP
-   ========================================================= */
-
-body.ss-dark-mode,
-html body.ss-dark-mode {
-  background: #171c1c !important;
-  color: #e7eeee !important;
-}
-
-body.ss-dark-mode .wrapper {
-  background: #232b2b !important;
-  border-color: #3d4a49 !important;
-  box-shadow: 0 8px 22px rgba(0,0,0,.25) !important;
-  color: #e7eeee !important;
-}
-
-body.ss-dark-mode h1,
-body.ss-dark-mode .record-section-title,
-body.ss-dark-mode .registered-name,
-body.ss-dark-mode details.record-details summary,
-body.ss-dark-mode .summary-card strong {
-  color: #9fcfca !important;
-}
-
-body.ss-dark-mode .summary-card,
-body.ss-dark-mode .registered-name,
-body.ss-dark-mode .empty,
-body.ss-dark-mode details.record-details,
-body.ss-dark-mode .records-table,
-body.ss-dark-mode .titles-table {
-  background: #1f2727 !important;
-  border-color: #3d4a49 !important;
-  color: #e7eeee !important;
-}
-
-body.ss-dark-mode .records-table td,
-body.ss-dark-mode .titles-table td {
-  background: #232b2b !important;
-  border-color: #3d4a49 !important;
-  color: #e7eeee !important;
-}
-
-body.ss-dark-mode .records-table tr:hover td,
-body.ss-dark-mode .titles-table tr:hover td {
-  background: #2b3535 !important;
-}
-
-body.ss-dark-mode .records-table th,
-body.ss-dark-mode .titles-table th {
-  background: #2f6f6f !important;
-  color: #ffffff !important;
-  border-color: #3d4a49 !important;
-}
-
-body.ss-dark-mode details.record-details summary {
-  background: #1b2323 !important;
-  border-color: #3d4a49 !important;
-}
-
-body.ss-dark-mode .record-details-content {
-  background: #232b2b !important;
-  color: #e7eeee !important;
-}
-
-body.ss-dark-mode .empty {
-  color: #b5c4c2 !important;
-}
-
-body.ss-dark-mode .summary-card {
-  background: #1b2323 !important;
-}
-
-body.ss-dark-mode a {
-  color: #9fcfca !important;
-}
-
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:'Quicksand',Arial,sans-serif;color:var(--text);background:#fff;padding:22px}
+.wrapper{width:min(1180px,100%);margin:20px auto 48px}
+h1{margin:0 0 20px;text-align:center;font-family:'Barlow SC','Oswald',sans-serif;color:var(--accent-dark);letter-spacing:.06em;font-size:clamp(28px,4vw,42px)}
+.panel,.animal-header{background:var(--panel);border:1px solid var(--border);border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,.035)}
+.animal-header{padding:20px 24px;text-align:center;margin-bottom:12px}
+.full-name{font-family:'Uchen',Georgia,serif;color:#185f5c;font-size:clamp(20px,3vw,30px);line-height:1.35;font-weight:600}
+.animal-meta{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 11px;margin-top:9px;font-size:13px;color:#314141}
+.meta-sep{color:rgba(47,111,111,.55);padding:0 2px}
+.title-strip{padding:15px 18px 17px;margin-bottom:12px}
+.panel-title{margin:0 0 12px;font-family:'Barlow SC','Oswald',sans-serif;color:var(--accent-dark);letter-spacing:.08em;text-transform:uppercase;font-size:18px;border-bottom:1px solid var(--border);padding-bottom:8px}
+.panel-subtitle{margin:-5px 0 0;color:var(--muted);font-size:13px}
+.registered-name{font-family:'Uchen',Georgia,serif;color:#185f5c;background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:12px 16px;text-align:center;font-size:18px}
+.main-tabs,.year-tabs{display:flex;flex-wrap:wrap;gap:7px}
+.main-tabs{margin:12px 0 14px}
+.main-tab,.year-tab{appearance:none;border:1px solid var(--border);background:#fff;color:#244443;border-radius:7px;cursor:pointer;font-family:'Barlow SC','Oswald',sans-serif;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+.main-tab{padding:10px 16px;font-size:12px}.year-tab{padding:7px 11px;font-size:11px}
+.main-tab:hover,.year-tab:hover,.main-tab.active,.year-tab.active{background:var(--accent-dark);border-color:var(--accent-dark);color:#fff}
+.tab-panel{display:none}.tab-panel.active{display:block}
+.overview-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(290px,.75fr);gap:14px;align-items:start}
+.overview-grid>.panel,.tab-panel>.panel{padding:16px}
+.highlights-panel{min-height:100%}
+.highlight-list{display:grid;gap:2px}
+.highlight-row{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:9px 4px;border-bottom:1px solid rgba(70,137,134,.11)}
+.highlight-row:last-child{border-bottom:none}
+.highlight-row span{font-family:'Barlow SC','Oswald',sans-serif;letter-spacing:.04em;color:#265e5c;font-size:12px}
+.highlight-row strong{font-size:14px}
+.table-wrap{width:100%;overflow-x:auto}
+.records-table,.titles-table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff}
+.records-table th,.records-table td,.titles-table th,.titles-table td{padding:10px 11px;border-bottom:1px solid rgba(70,137,134,.13);border-right:1px solid rgba(70,137,134,.08);text-align:left;font-size:13px;vertical-align:top}
+.records-table th:last-child,.records-table td:last-child,.titles-table th:last-child,.titles-table td:last-child{border-right:0}
+.records-table tr:last-child td,.titles-table tr:last-child td{border-bottom:0}
+.records-table th,.titles-table th{background:var(--accent-dark);color:#fff;font-family:'Barlow SC','Oswald',sans-serif;font-size:11px;letter-spacing:.07em;text-transform:uppercase;font-weight:600}
+.records-table tbody tr:hover td,.titles-table tbody tr:hover td{background:rgba(70,137,134,.045)}
+.status-pill{display:inline-block;font-weight:700;font-size:12px}.status-pill.earned{color:#258232}.status-pill.progress{color:#6e7373}
+.year-tabs{margin:0 0 12px}
+.empty{padding:16px;border:1px solid var(--border);border-radius:10px;background:var(--soft);color:var(--muted);font-style:italic}
+.versatility-heading{display:flex;gap:20px;justify-content:space-between;align-items:start;margin-bottom:14px}
+.versatility-current{min-width:220px;background:var(--soft);border:1px solid var(--border);border-radius:10px;padding:11px 14px;text-align:right}
+.versatility-current span,.mini-stat span{display:block;font-family:'Barlow SC','Oswald',sans-serif;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:#50706f}
+.versatility-current strong{display:block;margin-top:4px;color:var(--accent-dark)}
+.versatility-counts,.club-summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:12px 0 14px}
+.mini-stat{background:var(--soft);border:1px solid var(--border);border-radius:9px;padding:10px 12px;text-align:center}
+.mini-stat strong{display:block;color:var(--accent-dark);font-size:18px;margin-top:3px}
+.subsection-title{margin:18px 0 9px;color:var(--accent-dark);font-family:'Barlow SC','Oswald',sans-serif;letter-spacing:.06em;text-transform:uppercase;font-size:14px}
+[hidden]{display:none!important}
+body.ss-dark-mode,html body.ss-dark-mode{--text:#e7eeee;--muted:#b6c3c2;--border:#3d4a49;--soft:rgba(159,207,202,.065);--panel:#232b2b;background:#171c1c;color:var(--text)}
+body.ss-dark-mode .panel,body.ss-dark-mode .animal-header,body.ss-dark-mode .records-table,body.ss-dark-mode .titles-table,body.ss-dark-mode .main-tab,body.ss-dark-mode .year-tab{background:#232b2b;color:#e7eeee}
+body.ss-dark-mode .registered-name,body.ss-dark-mode .versatility-current,body.ss-dark-mode .mini-stat,body.ss-dark-mode .empty{background:#1b2323}
+body.ss-dark-mode .records-table td,body.ss-dark-mode .titles-table td{background:#232b2b;color:#e7eeee}
+body.ss-dark-mode .records-table tbody tr:hover td,body.ss-dark-mode .titles-table tbody tr:hover td{background:#2b3535}
+body.ss-dark-mode .main-tab.active,body.ss-dark-mode .year-tab.active{background:var(--accent-dark);color:#fff}
+@media(max-width:860px){body{padding:12px}.wrapper{margin-top:10px}.overview-grid{grid-template-columns:1fr}.animal-header{padding:16px}.versatility-heading{flex-direction:column}.versatility-current{width:100%;text-align:left}.main-tab{flex:1 1 160px}}
+@media(max-width:560px){.records-table th,.records-table td,.titles-table th,.titles-table td{padding:8px;font-size:12px}.main-tab{flex:1 1 100%}.animal-meta{gap:5px 8px}}
