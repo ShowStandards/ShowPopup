@@ -2190,6 +2190,10 @@ function calculateIcelandicAssociationTitles(records, animal) {
     normalizeKey(record?.association_key) === "ihass"
   );
 
+  if (!ihass.length) {
+    return { prefixes: [], suffixes: [], rows: [] };
+  }
+
   const pointsFor = eventType =>
     ihass
       .filter(record => normalizeKey(record?.association_event_type) === eventType)
@@ -2208,42 +2212,116 @@ function calculateIcelandicAssociationTitles(records, animal) {
   const prefixes = [];
   const rows = [];
 
-  // Higher titles replace lower titles within each IHASS track.
+  // HALTER: show highest earned title, otherwise next target.
   if (halterPoints >= 1500) {
     prefixes.push("IHGCh.");
-    rows.push({ titleName: "Icelandic Horse Grand Champion", titleCode: "IHGCh.", count: halterPoints + " IHASS Halter points", sort: 780 });
+    rows.push({
+      category:"Halter",
+      title:"Icelandic Horse Grand Champion",
+      code:"IHGCh.",
+      requirement:"1,500 IHASS Halter points",
+      current:`${halterPoints.toLocaleString()} points`,
+      earned:true,
+      sort:780
+    });
   } else if (halterPoints >= 500) {
     prefixes.push("IHCh.");
-    rows.push({ titleName: "Icelandic Horse Champion", titleCode: "IHCh.", count: halterPoints + " IHASS Halter points", sort: 780 });
+    rows.push({
+      category:"Halter",
+      title:"Icelandic Horse Champion",
+      code:"IHCh.",
+      requirement:"500 IHASS Halter points",
+      current:`${halterPoints.toLocaleString()} points`,
+      earned:true,
+      sort:780
+    });
+  } else {
+    rows.push({
+      category:"Halter",
+      title:"Icelandic Horse Champion",
+      code:"IHCh.",
+      requirement:"500 IHASS Halter points",
+      current:`${halterPoints.toLocaleString()}/500 points`,
+      earned:false,
+      sort:780
+    });
   }
 
+  // GAITING
   if (gaitingPoints >= 500) {
     prefixes.push("GSGCh.");
-    rows.push({ titleName: "Gaiting Show Grand Champion", titleCode: "GSGCh.", count: gaitingPoints + " IHASS Gaiting points", sort: 781 });
+    rows.push({
+      category:"Gaiting",
+      title:"Gaiting Show Grand Champion",
+      code:"GSGCh.",
+      requirement:"500 IHASS Gaiting points",
+      current:`${gaitingPoints.toLocaleString()} points`,
+      earned:true,
+      sort:781
+    });
   } else if (gaitingPoints >= 250) {
     prefixes.push("GSCh.");
-    rows.push({ titleName: "Gaiting Show Champion", titleCode: "GSCh.", count: gaitingPoints + " IHASS Gaiting points", sort: 781 });
+    rows.push({
+      category:"Gaiting",
+      title:"Gaiting Show Champion",
+      code:"GSCh.",
+      requirement:"250 IHASS Gaiting points",
+      current:`${gaitingPoints.toLocaleString()} points`,
+      earned:true,
+      sort:781
+    });
+  } else {
+    rows.push({
+      category:"Gaiting",
+      title:"Gaiting Show Champion",
+      code:"GSCh.",
+      requirement:"250 IHASS Gaiting points",
+      current:`${gaitingPoints.toLocaleString()}/250 points`,
+      earned:false,
+      sort:781
+    });
   }
 
+  // BREEDING
   if (breedingCertificates >= 8 && breedingPoints >= 1200) {
     prefixes.push("BSGCh.");
     rows.push({
-      titleName: "Breeding Show Grand Champion",
-      titleCode: "BSGCh.",
-      count: breedingCertificates + " certificates | " + breedingPoints + " IHASS Breeding points",
-      sort: 782
+      category:"Breeding",
+      title:"Breeding Show Grand Champion",
+      code:"BSGCh.",
+      requirement:"8 certificates + 1,200 IHASS Breeding points",
+      current:`${breedingCertificates} certificates | ${breedingPoints.toLocaleString()} points`,
+      earned:true,
+      sort:782
     });
   } else if (breedingCertificates >= 3 && breedingPoints >= 500) {
     prefixes.push("BSCh.");
     rows.push({
-      titleName: "Breeding Show Champion",
-      titleCode: "BSCh.",
-      count: breedingCertificates + " certificates | " + breedingPoints + " IHASS Breeding points",
-      sort: 782
+      category:"Breeding",
+      title:"Breeding Show Champion",
+      code:"BSCh.",
+      requirement:"3 certificates + 500 IHASS Breeding points",
+      current:`${breedingCertificates} certificates | ${breedingPoints.toLocaleString()} points`,
+      earned:true,
+      sort:782
+    });
+  } else {
+    rows.push({
+      category:"Breeding",
+      title:"Breeding Show Champion",
+      code:"BSCh.",
+      requirement:"3 certificates + 500 IHASS Breeding points",
+      current:`${breedingCertificates}/3 certificates | ${breedingPoints.toLocaleString()}/500 points`,
+      earned:false,
+      sort:782
     });
   }
 
-  return { prefixes: uniqueTitleList(prefixes), suffixes: [], rows };
+  return {
+    prefixes: uniqueTitleList(prefixes),
+    suffixes: [],
+    rows
+  };
 }
 
 
@@ -2294,8 +2372,8 @@ function calculateHuntingClubTitles(records, animal) {
   }
 
   const club = (records || []).filter(record =>
-    normalizeKey(record?.association_key) === 'hunting_club' &&
-    normalizeKey(record?.association_event_type) === 'field_test'
+    normalizeKey(record?.association_key) === 'hunting club' &&
+    normalizeKey(record?.association_event_type) === 'field test'
   );
 
   if (!club.length) return {suffixes:[],rows:[]};
@@ -2303,13 +2381,14 @@ function calculateHuntingClubTitles(records, animal) {
   const grouped = {};
 
   club.forEach(record => {
-    const family = normalizeKey(record.hunting_family).replace(/\s+/g, "_");
-    const specialization = normalizeKey(record.hunting_specialization).replace(/\s+/g, "_");
-    const level = normalizeKey(record.hunting_level);
+    const family = normalizeKey(record?.hunting_family).replace(/\s+/g, "_");
+    const specialization = normalizeKey(record?.hunting_specialization).replace(/\s+/g, "_");
+    const level = normalizeKey(record?.hunting_level);
 
     if (!family || !specialization || !SS_HUNTING_TITLE_LEVELS[level]) return;
 
     const key = family + '::' + specialization;
+
     if (!grouped[key]) {
       grouped[key] = {
         family,
@@ -2318,7 +2397,9 @@ function calculateHuntingClubTitles(records, animal) {
       };
     }
 
-    if (recordPassed(record) === true) grouped[key].counts[level]++;
+    if (recordPassed(record) === true) {
+      grouped[key].counts[level]++;
+    }
   });
 
   const suffixes = [];
@@ -2329,32 +2410,41 @@ function calculateHuntingClubTitles(records, animal) {
     const specDef = familyDef?.specializations?.[group.specialization];
     if (!familyDef || !specDef) return;
 
-    let earnedLevel = null;
+    const beginnerDef = SS_HUNTING_TITLE_LEVELS.beginners;
+    const expertDef = SS_HUNTING_TITLE_LEVELS.expert;
+    const mastersDef = SS_HUNTING_TITLE_LEVELS.masters;
 
-    if (group.counts.masters >= SS_HUNTING_TITLE_LEVELS.masters.required) earnedLevel = 'masters';
-    else if (group.counts.expert >= SS_HUNTING_TITLE_LEVELS.expert.required) earnedLevel = 'expert';
-    else if (group.counts.beginners >= SS_HUNTING_TITLE_LEVELS.beginners.required) earnedLevel = 'beginners';
+    let displayLevel = "beginners";
+    let earned = false;
 
-    if (earnedLevel) {
-      const levelDef = SS_HUNTING_TITLE_LEVELS[earnedLevel];
-      const code = levelDef.prefix + familyDef.code + specDef[1];
-      suffixes.push(code);
-
-      rows.push({
-        titleName: levelDef.label + ' ' + familyDef.label + ' | ' + specDef[0],
-        titleCode: code,
-        count: group.counts[earnedLevel] + ' qualifying tests',
-        sort: 770
-      });
+    if (group.counts.masters >= mastersDef.required) {
+      displayLevel = "masters";
+      earned = true;
+    } else if (group.counts.expert >= expertDef.required) {
+      displayLevel = "expert";
+      earned = true;
+    } else if (group.counts.beginners >= beginnerDef.required) {
+      displayLevel = "beginners";
+      earned = true;
     } else {
-      const next = SS_HUNTING_TITLE_LEVELS.beginners;
-      rows.push({
-        titleName: familyDef.label + ' | ' + specDef[0] + ' Field Test',
-        titleCode: '',
-        count: group.counts.beginners + '/' + next.required + ' Beginners qualifications',
-        sort: 771
-      });
+      displayLevel = "beginners";
     }
+
+    const levelDef = SS_HUNTING_TITLE_LEVELS[displayLevel];
+    const current = group.counts[displayLevel] || 0;
+    const code = levelDef.prefix + familyDef.code + specDef[1];
+
+    if (earned) suffixes.push(code);
+
+    rows.push({
+      category: familyDef.label + " | " + specDef[0],
+      title: levelDef.label + " " + familyDef.label + " | " + specDef[0],
+      code,
+      requirement: levelDef.required + " qualifying tests",
+      current: current + "/" + levelDef.required + " qualifications",
+      earned,
+      sort: 770
+    });
   });
 
   return {
@@ -2367,6 +2457,17 @@ function isEnduranceClubRecord(record) {
   return normalizeKey(record?.association_key) === "endurance club";
 }
 
+
+function enduranceGradeKey(record) {
+  const raw = normalizeKey(record?.endurance_grade);
+
+  if (["iii","grade iii","3","grade 3"].includes(raw)) return "III";
+  if (["ii","grade ii","2","grade 2"].includes(raw)) return "II";
+  if (["i","grade i","1","grade 1"].includes(raw)) return "I";
+  if (raw === "inv" || raw === "invitational" || raw.includes("invitational")) return "INV";
+
+  return String(record?.endurance_grade || "").trim().toUpperCase();
+}
 
 function getEnduranceTitleProgressData(records, animal) {
   if (normalizeKey(animal?.species) !== "horse") {
@@ -2404,7 +2505,7 @@ function getEnduranceTitleProgressData(records, animal) {
   const winsByGrade = { I:0, II:0, III:0, INV:0 };
   club.forEach(record => {
     if (enduranceNumericPlacement(record) !== 1) return;
-    const grade = String(record?.endurance_grade || "").toUpperCase();
+    const grade = enduranceGradeKey(record);
     if (winsByGrade[grade] !== undefined) winsByGrade[grade]++;
   });
 
@@ -2520,9 +2621,89 @@ function getEnduranceTitleProgressData(records, animal) {
   return {rows:rows.sort((a,b)=>a.sort-b.sort),prefixes:uniqueTitleList(prefixes),suffixes:uniqueTitleList(suffixes)};
 }
 
+function highestEnduranceProgressRows(rows) {
+  /*
+    Show ONE active row for each Endurance title ladder.
+
+    Behaviour:
+      - no title earned yet -> show the FIRST title in that ladder as In Progress
+      - a title is earned   -> show ONLY the HIGHEST earned title
+      - when the next tier is earned, it replaces the lower one
+
+    Example:
+      3,920 km -> EdDCh only
+      32,000 km -> EdDGCh replaces EdDCh
+      55,000 km -> EdDHoF replaces EdDGCh
+  */
+
+  const ladderOrder = {
+    "grade iii stakes": ["EdSIII", "MEdSIII", "GChEdSIII"],
+    "grade ii stakes":  ["EdSII", "MEdSII", "GChEdSII"],
+    "grade i stakes":   ["EdSI", "MEdSI", "GChEdSI"],
+
+    "distance": ["EdDCh", "EdDGCh", "EdDHoF", "EdDL"],
+    "earnings": ["EdHE", "EdSpH", "EdHOFE"]
+  };
+
+  const normalizeCategory = value =>
+    normalizeKey(value || "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+  const grouped = {};
+
+  (rows || []).forEach(row => {
+    const key = normalizeCategory(row?.category) || "other";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(row);
+  });
+
+  const result = [];
+
+  Object.entries(grouped).forEach(([categoryKey, group]) => {
+    const codeOrder = ladderOrder[categoryKey];
+
+    let ordered;
+
+    if (codeOrder) {
+      ordered = group.slice().sort((a, b) => {
+        const ai = codeOrder.indexOf(String(a?.code || ""));
+        const bi = codeOrder.indexOf(String(b?.code || ""));
+
+        const safeA = ai === -1 ? 999 : ai;
+        const safeB = bi === -1 ? 999 : bi;
+
+        if (safeA !== safeB) return safeA - safeB;
+        return Number(a?.sort || 0) - Number(b?.sort || 0);
+      });
+    } else {
+      // Circuit / World Tour / special ladders already carry their intended
+      // progression order through the audited sort value.
+      ordered = group.slice().sort(
+        (a, b) => Number(a?.sort || 0) - Number(b?.sort || 0)
+      );
+    }
+
+    const earnedRows = ordered.filter(row => row?.earned === true);
+
+    // Highest earned replaces lower tiers.
+    // If nothing has been earned yet, only show the first target.
+    const chosen = earnedRows.length
+      ? earnedRows[earnedRows.length - 1]
+      : ordered[0];
+
+    if (chosen) result.push(chosen);
+  });
+
+  return result.sort(
+    (a, b) => Number(a?.sort || 0) - Number(b?.sort || 0)
+  );
+}
+
 function renderEnduranceTitleProgress(records, animal) {
   const data=getEnduranceTitleProgressData(records, animal);
-  if (!data.rows.length) return `<div class="empty">No Endurance Club title progress yet.</div>`;
+  const progressRows = highestEnduranceProgressRows(data.rows);
+  if (!progressRows.length) return `<div class="empty">No Endurance Club title progress yet.</div>`;
   return `
     <div class="table-wrap">
       <table class="titles-table endurance-progress-table">
@@ -2530,7 +2711,7 @@ function renderEnduranceTitleProgress(records, animal) {
           <th>Category</th><th>Title</th><th>Code</th><th>Requirement</th><th>Current</th><th>Status</th>
         </tr></thead>
         <tbody>
-          ${data.rows.map(row=>`
+          ${progressRows.map(row=>`
             <tr>
               <td>${escapeHtml(row.category)}</td>
               <td>${escapeHtml(row.title)}</td>
@@ -2583,7 +2764,7 @@ function calculateEnduranceClubTitles(records, animal) {
 
   club.forEach(record => {
     if (enduranceNumericPlacement(record) !== 1) return;
-    const grade = String(record?.endurance_grade || "").toUpperCase();
+    const grade = enduranceGradeKey(record);
     if (winsByGrade[grade] !== undefined) winsByGrade[grade]++;
   });
 
@@ -3721,6 +3902,48 @@ function renderRecordTable(records, tableId) {
   `;
 }
 
+function renderStructuredClubProgress(rows) {
+  if (!rows?.length) {
+    return `<div class="empty">No title progress yet.</div>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table class="titles-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th>Title</th>
+            <th>Code</th>
+            <th>Requirement</th>
+            <th>Current</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows
+            .slice()
+            .sort((a,b) => Number(a.sort || 0) - Number(b.sort || 0))
+            .map(row => `
+              <tr>
+                <td>${escapeHtml(row.category || "")}</td>
+                <td>${escapeHtml(row.title || row.titleName || "")}</td>
+                <td>${escapeHtml(row.code || row.titleCode || "")}</td>
+                <td>${escapeHtml(row.requirement || "")}</td>
+                <td>${escapeHtml(row.current || row.count || "")}</td>
+                <td>
+                  <span class="status-pill ${row.earned ? "earned" : "progress"}">
+                    ${row.earned ? "Earned" : "In Progress"}
+                  </span>
+                </td>
+              </tr>
+            `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function renderClubProgressTable(rows) {
   if (!rows?.length) return `<div class="empty">This animal has club records, but no club title has been earned yet.</div>`;
   return `
@@ -3909,7 +4132,8 @@ function getClubPanels(records, animal, herdingRules) {
       key:"hunting", label:"Hunting Club",
       html:`<section class="panel">
         <h3 class="panel-title">Hunting Club</h3>
-        ${renderClubProgressTable(data.rows)}
+        <h4 class="subsection-title">Title Progress</h4>
+        ${renderStructuredClubProgress(data.rows)}
         <h4 class="subsection-title">Club Records</h4>
         ${renderRecordTable(huntingRecords, "club-records-hunting")}
       </section>`
@@ -3923,7 +4147,8 @@ function getClubPanels(records, animal, herdingRules) {
       key:"ihass", label:"IHASS",
       html:`<section class="panel">
         <h3 class="panel-title">IHASS</h3>
-        ${renderClubProgressTable(data.rows)}
+        <h4 class="subsection-title">Title Progress</h4>
+        ${renderStructuredClubProgress(data.rows)}
         <h4 class="subsection-title">Association Records</h4>
         ${renderRecordTable(ihassRecords, "club-records-ihass")}
       </section>`
