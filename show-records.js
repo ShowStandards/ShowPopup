@@ -3248,13 +3248,16 @@ function isTestingCertificateRecord(record) {
   const combined = `${activityKey} ${classText} ${labelText} ${showText}`;
 
   return (
-    activityKey === "temperament test" ||
-    activityKey === "temperament_test" ||
-    activityKey === "therapy animal" ||
-    activityKey === "therapy_animal" ||
     ["cgc","cgcb","cgcs","cgcg","cgca","cgcu"].includes(activityKey) ||
-    combined.includes("temperament test") ||
-    combined.includes("therapy animal") ||
+
+    // Catch every Temperament variation, not only the exact
+    // "Temperament Test" wording used by newer records.
+    combined.includes("temperament") ||
+
+    // Catch Therapy Animal / Therapy Test / Therapy Dog-Cat-Horse
+    // and older records that simply stored "Therapy".
+    combined.includes("therapy") ||
+
     combined.includes("canine good citizen") ||
     /\bcgc\b/.test(combined)
   );
@@ -3604,7 +3607,9 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
   const conformation = records.filter(r => canonicalShowType(r.show_type) === "conformation");
   const testingRecords = records.filter(isTestingCertificateRecord);
   const activities = collapseTeamActivityRecords(records.filter(r =>
-    canonicalShowType(r.show_type) === "activity" && !isTestingCertificateRecord(r)
+    canonicalShowType(r.show_type) === "activity" &&
+    !isTestingCertificateRecord(r) &&
+    !isManualScoreRecord(r)
   ));
 
   const nav = [
