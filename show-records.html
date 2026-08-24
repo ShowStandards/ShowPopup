@@ -3,26 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <title>Show Records</title>
 
 <script>
-(function () {
-  const params = new URLSearchParams(window.location.search);
-  const version = params.get("v") || Date.now();
-
-  const css = document.createElement("link");
-  css.rel = "stylesheet";
-  css.href = "show-records.css?v=" + encodeURIComponent(version);
-  document.head.appendChild(css);
-})();
+window.addEventListener("error", function (event) {
+  const content = document.getElementById("content");
+  if (content && content.textContent.includes("Loading records")) {
+    content.innerHTML =
+      '<div class="empty">JavaScript error: ' +
+      String(event.message || "Unknown error") +
+      '</div>';
+  }
+});
 </script>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
-
 <div class="wrapper">
   <h1>Show Records</h1>
   <div id="content">Loading records...</div>
@@ -33,12 +31,32 @@
   const params = new URLSearchParams(window.location.search);
   const version = params.get("v") || Date.now();
 
+  const css = document.createElement("link");
+  css.rel = "stylesheet";
+  css.href = "show-records.css?v=" + encodeURIComponent(version);
+  document.head.appendChild(css);
+
   const script = document.createElement("script");
   script.src = "show-records.js?v=" + encodeURIComponent(version);
+
+  script.onload = function () {
+    if (typeof bootShowRecords === "function") {
+      bootShowRecords();
+    } else if (typeof loadRecords === "function") {
+      loadRecords();
+    }
+  };
+
+  script.onerror = function () {
+    const content = document.getElementById("content");
+    if (content) {
+      content.innerHTML =
+        '<div class="empty">Show Records JavaScript failed to load.</div>';
+    }
+  };
 
   document.body.appendChild(script);
 })();
 </script>
-
 </body>
 </html>
