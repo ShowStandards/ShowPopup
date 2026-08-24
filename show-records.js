@@ -2115,14 +2115,14 @@ function calculateTestingTitles(records, animal) {
 
   const temperamentPassed = (records || []).some(r =>
     canonicalShowType(r?.show_type) === "activity" &&
-    (normalizeKey(r?.activity_key) === "temperament_test" || normalizeKey(r?.class).includes("temperament test")) &&
+    testingCertificateLabel(r) === "Temperament Testing" &&
     (Number(r?.score) >= 110 || recordPassed(r) === true)
   );
   if (temperamentPassed) {
     suffixes.push(codes.temperament);
     const record = (records || []).find(r =>
       canonicalShowType(r?.show_type) === "activity" &&
-      (normalizeKey(r?.activity_key) === "temperament_test" || normalizeKey(r?.class).includes("temperament test")) &&
+      testingCertificateLabel(r) === "Temperament Testing" &&
       (Number(r?.score) >= 110 || recordPassed(r) === true)
     );
     rows.push({
@@ -2135,14 +2135,14 @@ function calculateTestingTitles(records, animal) {
 
   const therapyPasses = (records || []).filter(r =>
     canonicalShowType(r?.show_type) === "activity" &&
-    (normalizeKey(r?.activity_key) === "therapy_animal" || normalizeKey(r?.class).includes("therapy animal test")) &&
+    testingCertificateLabel(r) === "Therapy Animal" &&
     (Number(r?.score) >= 110 || recordPassed(r) === true)
   ).length;
   if (therapyPasses) {
     suffixes.push(codes.therapy);
     const record = (records || []).find(r =>
       canonicalShowType(r?.show_type) === "activity" &&
-      (normalizeKey(r?.activity_key) === "therapy_animal" || normalizeKey(r?.class).includes("therapy animal test")) &&
+      testingCertificateLabel(r) === "Therapy Animal" &&
       (Number(r?.score) >= 110 || recordPassed(r) === true)
     );
     rows.push({
