@@ -1330,7 +1330,7 @@ function resolveActivityForRecord(record, activityTypes) {
   ].filter(Boolean).join(" "));
 
   const isEnduranceRecord = (
-    normalizeKey(record?.association_key) === "endurance_club" ||
+    normalizeKey(record?.association_key) === "endurance club" ||
     activityBaseKey(record?.activity_key) === "endurance" ||
     record?.endurance_race_key ||
     record?.endurance_race_name ||
@@ -2363,14 +2363,16 @@ function calculateHuntingClubTitles(records, animal) {
   };
 }
 
+function isEnduranceClubRecord(record) {
+  return normalizeKey(record?.association_key) === "endurance club";
+}
+
 function calculateEnduranceClubTitles(records, animal) {
   if (normalizeKey(animal?.species) !== "horse") {
     return { prefixes: [], suffixes: [], rows: [] };
   }
 
-  const club = (records || []).filter(record =>
-    normalizeKey(record?.association_key) === "endurance_club"
-  );
+  const club = (records || []).filter(isEnduranceClubRecord);
 
   if (!club.length) {
     return { prefixes: [], suffixes: [], rows: [] };
@@ -2670,7 +2672,7 @@ function calculateEnduranceClubTitles(records, animal) {
     the endurance_circuit_champions view.
   */
   club
-    .filter(record => normalizeKey(record?.association_event_type) === "circuit_champion")
+    .filter(record => normalizeKey(record?.association_event_type) === "circuit champion")
     .forEach(record => {
       const circuit = record.endurance_circuit;
       const codeMap = circuitCodes[circuit];
@@ -3558,7 +3560,7 @@ function renderClubProgressTable(rows) {
 }
 
 function enduranceClubSummary(records) {
-  const club = (records || []).filter(r => normalizeKey(r?.association_key) === "endurance club");
+  const club = (records || []).filter(isEnduranceClubRecord);
   const completed = club.filter(r => r?.endurance_completed === true || recordPassed(r) === true);
   const totalDistance = completed.reduce((sum,r) => sum + (Number(r?.endurance_distance_km) || 0), 0);
   const totalMoney = club.reduce((sum,r) => sum + (Number(r?.endurance_winnings) || 0), 0);
@@ -3701,7 +3703,7 @@ function hasHerdingRecords(records) {
 function getClubPanels(records, animal, herdingRules) {
   const panels = [];
 
-  const enduranceRecords = records.filter(r => normalizeKey(r?.association_key) === "endurance club");
+  const enduranceRecords = records.filter(isEnduranceClubRecord);
   if (enduranceRecords.length) {
     const data = calculateEnduranceClubTitles(records, animal);
     panels.push({
