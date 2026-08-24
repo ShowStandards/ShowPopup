@@ -3340,6 +3340,8 @@ function renderTestingCertificatesPanel(records, animal) {
 }
 
 function activityFilterKey(record, activityTypes) {
+  if (isBestInFieldActivityRecord(record)) return "";
+
   const activity = resolveActivityForRecord(record, activityTypes);
   const raw =
     activity?.display_name ||
@@ -3361,6 +3363,8 @@ function cleanActivityDisplayName(value) {
 }
 
 function activityFilterLabel(record, activityTypes) {
+  if (isBestInFieldActivityRecord(record)) return "";
+
   const activity = resolveActivityForRecord(record, activityTypes);
   const rawLabel =
     activity?.display_name ||
@@ -3581,7 +3585,8 @@ function getClubPanels(records, animal, herdingRules) {
   if (hasHerdingRecords(records)) {
     const data = calculateHerdingTitles(records, animal, herdingRules);
 
-    const instinctRecords = records.filter(r => {
+    const herdingRecords = records.filter(r => {
+      // Herding Instinct Testing belongs in the Herding Records table too.
       if (isHerdingInstinctRecord(r)) return true;
 
       const activityKey = normalizeKey(r?.activity_key);
@@ -3600,17 +3605,12 @@ function getClubPanels(records, animal, herdingRules) {
         activityKey === "herding" ||
         text.includes("herding");
 
-      return isInstinct && isHerding;
-    });
+      if (isInstinct && isHerding) return true;
 
-    const herdingRecords = records.filter(r => {
-      if (isHerdingInstinctRecord(r)) return false;
-
-      const key = normalizeKey(r?.activity_key);
       const cls = normalizeKey(r?.class);
       const label = normalizeKey(r?.score_label);
 
-      return key === "herding" || cls.startsWith("herding") || label.startsWith("herding");
+      return activityKey === "herding" || cls.startsWith("herding") || label.startsWith("herding");
     });
 
     panels.push({
@@ -3620,11 +3620,6 @@ function getClubPanels(records, animal, herdingRules) {
 
         <h4 class="subsection-title">Title Progress</h4>
         ${renderClubProgressTable(data.rows)}
-
-        ${instinctRecords.length ? `
-          <h4 class="subsection-title">Instinct Testing</h4>
-          ${renderRecordTable(instinctRecords, "club-records-herding-instinct")}
-        ` : ""}
 
         ${herdingRecords.length ? `
           <h4 class="subsection-title">Herding Records</h4>
@@ -3681,7 +3676,8 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
   const activities = collapseTeamActivityRecords(records.filter(r =>
     canonicalShowType(r.show_type) === "activity" &&
     !isTestingCertificateRecord(r) &&
-    !isManualScoreRecord(r)
+    !isManualScoreRecord(r) &&
+    !isBestInFieldActivityRecord(r)
   ));
 
   const nav = [
