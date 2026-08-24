@@ -3,17 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <title>Show Records</title>
 
 <!--
-  Show Records v4.0 GitHub UI rebuild
-  Structural GitHub split only:
-  - show-records.html = page shell
-  - show-records.css  = styling
-  - show-records.js   = audited logic
+  Show Records
+  GitHub-hosted version
+
+  CSS and JS are loaded with the same cache-busting value
+  passed in from the Jcink loader.
 -->
 
-<link rel="stylesheet" href="show-records.css">
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+
+  // Jcink supplies this automatically.
+  // Date.now() is only a fallback if the page is opened directly.
+  const version = params.get("v") || Date.now();
+
+  const css = document.createElement("link");
+  css.rel = "stylesheet";
+  css.href = "show-records.css?v=" + encodeURIComponent(version);
+  document.head.appendChild(css);
+})();
+</script>
 
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
@@ -25,6 +39,17 @@
   <div id="content">Loading records...</div>
 </div>
 
-<script src="show-records.js"></script>
+<script>
+(function () {
+  const params = new URLSearchParams(window.location.search);
+  const version = params.get("v") || Date.now();
+
+  const script = document.createElement("script");
+  script.src = "show-records.js?v=" + encodeURIComponent(version);
+
+  document.body.appendChild(script);
+})();
+</script>
+
 </body>
 </html>
