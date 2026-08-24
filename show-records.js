@@ -2367,6 +2367,184 @@ function isEnduranceClubRecord(record) {
   return normalizeKey(record?.association_key) === "endurance club";
 }
 
+
+function getEnduranceTitleProgressData(records, animal) {
+  if (normalizeKey(animal?.species) !== "horse") {
+    return { rows: [], prefixes: [], suffixes: [] };
+  }
+
+  const club = (records || []).filter(isEnduranceClubRecord);
+  if (!club.length) return { rows: [], prefixes: [], suffixes: [] };
+
+  const rows = [];
+  const prefixes = [];
+  const suffixes = [];
+
+  const add = ({category,title,code,requirement,current,earned,position="suffix",sort=0}) => {
+    rows.push({category,title,code,requirement,current,earned,position,sort});
+    if (earned && code) {
+      if (position === "prefix") prefixes.push(code);
+      else suffixes.push(code);
+    }
+  };
+
+  const completed = club.filter(record =>
+    record?.endurance_completed !== false &&
+    normalizeKey(record?.association_event_type) !== "prospect" &&
+    normalizeKey(record?.association_event_type) !== "circuit champion"
+  );
+
+  const totalDistance = completed.reduce(
+    (sum, record) => sum + Number(record?.endurance_distance_km || 0), 0
+  );
+  const totalWinnings = club.reduce(
+    (sum, record) => sum + Number(record?.endurance_winnings || 0), 0
+  );
+
+  const winsByGrade = { I:0, II:0, III:0, INV:0 };
+  club.forEach(record => {
+    if (enduranceNumericPlacement(record) !== 1) return;
+    const grade = String(record?.endurance_grade || "").toUpperCase();
+    if (winsByGrade[grade] !== undefined) winsByGrade[grade]++;
+  });
+
+  [
+    ["III","EdSIII","Endurance Club Stakes III Winner",1,"suffix"],
+    ["III","MEdSIII","Multi Endurance Club Stakes III Winner",2,"suffix"],
+    ["III","GChEdSIII","Grand Champion Endurance Stakes III Winner",5,"prefix"],
+    ["II","EdSII","Endurance Club Stakes II Winner",1,"suffix"],
+    ["II","MEdSII","Multi Endurance Club Stakes II Winner",2,"suffix"],
+    ["II","GChEdSII","Grand Champion Endurance Stakes II Winner",5,"prefix"],
+    ["I","EdSI","Endurance Club Stakes I Winner",1,"suffix"],
+    ["I","MEdSI","Multi Endurance Club Stakes I Winner",2,"suffix"]
+  ].forEach(([grade,code,title,need,position], index) => {
+    const current = winsByGrade[grade] || 0;
+    add({category:`Grade ${grade} Stakes`,title,code,requirement:`${need} win${need===1?'':'s'}`,current:`${current} win${current===1?'':'s'}`,earned:current>=need,position,sort:100+index});
+  });
+
+  const gradeIGrandCurrent = (winsByGrade.I || 0) + (winsByGrade.INV || 0);
+  add({
+    category:"Grade I Stakes", title:"Grand Champion Endurance Stakes I Winner", code:"GChEdSI",
+    requirement:"5 Grade I / Invitational wins", current:`${gradeIGrandCurrent} qualifying wins`,
+    earned:gradeIGrandCurrent>=5, position:"prefix", sort:109
+  });
+
+  [
+    [20000,"EdDCh","Endurance Club Distance Champion","suffix"],
+    [30000,"EdDGCh","Endurance Club Distance Grand Champion","suffix"],
+    [50000,"EdDHoF","Endurance Club Distance Hall of Fame","prefix"],
+    [100000,"EdDL","Endurance Club Distance Legend","prefix"]
+  ].forEach(([need,code,title,position], index) => add({
+    category:"Distance",title,code,requirement:`${Number(need).toLocaleString()} km`,
+    current:`${Math.round(totalDistance).toLocaleString()} km`,earned:totalDistance>=need,position,sort:200+index
+  }));
+
+  [
+    [50000,"EdHE","Endurance Club High Earner","suffix"],
+    [100000,"EdSpH","Endurance Club Superior High Earner","suffix"],
+    [150000,"EdHOFE","Endurance Club Hall of Fame Earner","prefix"]
+  ].forEach(([need,code,title,position], index) => add({
+    category:"Earnings",title,code,requirement:`$${Number(need).toLocaleString()}`,
+    current:`$${Math.round(totalWinnings).toLocaleString()}`,earned:totalWinnings>=need,position,sort:300+index
+  }));
+
+  const circuitCodes = {
+    "Northern Circuit": {completion:"NCCC",excellence:"NCCE",champion:"NCCCh",sweep:"NCCS"},
+    "Desert Circuit": {completion:"DCCC",excellence:"DCCE",champion:"DCCh",sweep:"DCS"},
+    "Steppe Circuit": {completion:"SCCC",excellence:"SCCE",champion:"SCCh",sweep:"SCS"},
+    "North American Frontier Circuit": {completion:"NaCC",excellence:"NaCE",champion:"NaCh",sweep:"NaCS"},
+    "South American Circuit": {completion:"SaCC",excellence:"SaCE",champion:"SaCh",sweep:"SaCS"},
+    "Oceania Circuit": {completion:"OCCC",excellence:"OCCE",champion:"OCCh",sweep:"OCS"},
+    "African Circuit": {completion:"ACCC",excellence:"ACCE",champion:"ACCh",sweep:"ACCS"},
+    "Mediterranean Circuit": {completion:"MdCC",excellence:"MdCE",champion:"MdCCh",sweep:"MdCS"},
+    "Southeast Asia Circuit": {completion:"SeaCC",excellence:"SeaCE",champion:"SeaCCh",sweep:"SeaCS"},
+    "World Tour": {completion:"WTCC",excellence:"WTCE",champion:"WTCCh",sweep:"WTCS"}
+  };
+
+  const seasons = [...new Set(club.map(enduranceSeason).filter(Boolean))].sort((a,b)=>Number(b)-Number(a));
+  const touchedCircuits = [...new Set(club.map(r=>String(r?.endurance_circuit||"").trim()).filter(Boolean))];
+
+  touchedCircuits.filter(circuit => circuitCodes[circuit] && circuit !== "World Tour").forEach((circuit, ci) => {
+    const required = SS_ENDURANCE_TITLE_RACES.filter(r=>r.circuit===circuit).map(r=>r.key);
+    if (!required.length) return;
+    const codes = circuitCodes[circuit];
+
+    let bestCompleted=0,bestPlaced=0,bestWon=0,bestSeason="";
+    seasons.forEach(season => {
+      const recs=club.filter(r=>String(enduranceSeason(r))===String(season) && normalizeKey(r?.endurance_circuit)===normalizeKey(circuit));
+      const competed=new Set(recs.filter(r=>r?.endurance_completed!==false).map(r=>r.endurance_race_key));
+      const placed=new Set(recs.filter(r=>{const p=enduranceNumericPlacement(r); return p!==null&&p>=1&&p<=5;}).map(r=>r.endurance_race_key));
+      const won=new Set(recs.filter(r=>enduranceNumericPlacement(r)===1).map(r=>r.endurance_race_key));
+      if (competed.size>bestCompleted){bestCompleted=competed.size;bestSeason=season;}
+      bestPlaced=Math.max(bestPlaced,placed.size); bestWon=Math.max(bestWon,won.size);
+    });
+
+    const championRecord=club.find(r=>normalizeKey(r?.association_event_type)==="circuit champion" && normalizeKey(r?.endurance_circuit)===normalizeKey(circuit));
+
+    add({category:circuit,title:`${circuit} Completion`,code:codes.completion,requirement:`Complete all ${required.length} circuit races in one season`,current:`${Math.min(bestCompleted,required.length)}/${required.length} completed`,earned:seasons.some(season=>{
+      const recs=club.filter(r=>String(enduranceSeason(r))===String(season)&&normalizeKey(r?.endurance_circuit)===normalizeKey(circuit));
+      const set=new Set(recs.filter(r=>r?.endurance_completed!==false).map(r=>r.endurance_race_key)); return required.every(k=>set.has(k));}),sort:400+ci*10});
+    add({category:circuit,title:`${circuit} Excellence`,code:codes.excellence,requirement:`Place Top 5 in all ${required.length} circuit races in one season`,current:`${Math.min(bestPlaced,required.length)}/${required.length} Top 5`,earned:seasons.some(season=>{
+      const recs=club.filter(r=>String(enduranceSeason(r))===String(season)&&normalizeKey(r?.endurance_circuit)===normalizeKey(circuit));
+      const set=new Set(recs.filter(r=>{const p=enduranceNumericPlacement(r); return p!==null&&p>=1&&p<=5;}).map(r=>r.endurance_race_key)); return required.every(k=>set.has(k));}),sort:401+ci*10});
+    add({category:circuit,title:`${circuit} Sweep`,code:codes.sweep,requirement:`Win all ${required.length} circuit races in one season`,current:`${Math.min(bestWon,required.length)}/${required.length} wins`,earned:seasons.some(season=>{
+      const recs=club.filter(r=>String(enduranceSeason(r))===String(season)&&normalizeKey(r?.endurance_circuit)===normalizeKey(circuit));
+      const set=new Set(recs.filter(r=>enduranceNumericPlacement(r)===1).map(r=>r.endurance_race_key)); return required.every(k=>set.has(k));}),sort:402+ci*10});
+    add({category:circuit,title:`${circuit} Champion`,code:codes.champion,requirement:"Finish season as Circuit Champion",current:championRecord?`${championRecord.endurance_season} Champion`:"Not yet earned",earned:Boolean(championRecord),position:"prefix",sort:403+ci*10});
+  });
+
+  // World Tour paths are tracked independently.
+  if (touchedCircuits.includes("World Tour")) {
+    ["gemstone","crystal"].forEach((series, si) => {
+      const required=SS_ENDURANCE_TITLE_RACES.filter(r=>r.circuit==="World Tour"&&r.series===series).map(r=>r.key);
+      if (!required.length) return;
+      const label=series==="gemstone"?"GemStone":"Crystal";
+      const recs=club.filter(r=>normalizeKey(r?.endurance_series)===series);
+      const competed=new Set(recs.map(r=>r.endurance_race_key));
+      const placed=new Set(recs.filter(r=>{const p=enduranceNumericPlacement(r);return p!==null&&p>=1&&p<=5;}).map(r=>r.endurance_race_key));
+      const won=new Set(recs.filter(r=>enduranceNumericPlacement(r)===1).map(r=>r.endurance_race_key));
+      add({category:`World Tour - ${label}`,title:"World Tour Circuit Completion",code:"WTCC",requirement:`Complete all ${required.length} ${label} races in one season`,current:`${Math.min(competed.size,required.length)}/${required.length} completed`,earned:required.every(k=>competed.has(k)),sort:600+si*10});
+      add({category:`World Tour - ${label}`,title:"World Tour Circuit Excellence",code:"WTCE",requirement:`Top 5 in all ${required.length} ${label} races`,current:`${Math.min(placed.size,required.length)}/${required.length} Top 5`,earned:required.every(k=>placed.has(k)),sort:601+si*10});
+      add({category:`World Tour - ${label}`,title:"World Tour Circuit Sweep",code:"WTCS",requirement:`Win all ${required.length} ${label} races`,current:`${Math.min(won.size,required.length)}/${required.length} wins`,earned:required.every(k=>won.has(k)),sort:602+si*10});
+      add({category:`World Tour - ${label}`,title:series==="gemstone"?"Gem Stone Series Winner":"Crystal Tour Winner",code:series==="gemstone"?"EdGS":"EdCS",requirement:`Sweep the ${label} path`,current:`${Math.min(won.size,required.length)}/${required.length} wins`,earned:required.every(k=>won.has(k)),sort:603+si*10});
+    });
+  }
+
+  const firstPlaceRaceNames=new Set(club.filter(r=>enduranceNumericPlacement(r)===1).map(r=>normalizeKey(r?.endurance_race_name)));
+  const firstPlaceRaceKeys=new Set(club.filter(r=>enduranceNumericPlacement(r)===1).map(r=>String(r?.endurance_race_key||"").trim()));
+  const dcpecEarned=firstPlaceRaceKeys.has("desert_circuit_dubai_crown_prince_conference")||firstPlaceRaceNames.has("dubai crown prince conference")||firstPlaceRaceNames.has("dubai crown prince endurance cup");
+  if (club.some(r=>String(r?.endurance_race_key||"").includes("dubai_crown_prince")) || dcpecEarned) {
+    add({category:"Named Titles",title:"Dubai Crown Prince Endurance Cup",code:"DCPEC",requirement:"Win the Dubai Crown Prince Conference",current:dcpecEarned?"Winner":"Not yet earned",earned:dcpecEarned,sort:700});
+  }
+
+  return {rows:rows.sort((a,b)=>a.sort-b.sort),prefixes:uniqueTitleList(prefixes),suffixes:uniqueTitleList(suffixes)};
+}
+
+function renderEnduranceTitleProgress(records, animal) {
+  const data=getEnduranceTitleProgressData(records, animal);
+  if (!data.rows.length) return `<div class="empty">No Endurance Club title progress yet.</div>`;
+  return `
+    <div class="table-wrap">
+      <table class="titles-table endurance-progress-table">
+        <thead><tr>
+          <th>Category</th><th>Title</th><th>Code</th><th>Requirement</th><th>Current</th><th>Status</th>
+        </tr></thead>
+        <tbody>
+          ${data.rows.map(row=>`
+            <tr>
+              <td>${escapeHtml(row.category)}</td>
+              <td>${escapeHtml(row.title)}</td>
+              <td>${escapeHtml(row.code)}</td>
+              <td>${escapeHtml(row.requirement)}</td>
+              <td>${escapeHtml(row.current)}</td>
+              <td><span class="status-pill ${row.earned?'earned':'progress'}">${row.earned?'Earned':'In Progress'}</span></td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>`;
+}
+
 function calculateEnduranceClubTitles(records, animal) {
   if (normalizeKey(animal?.species) !== "horse") {
     return { prefixes: [], suffixes: [], rows: [] };
@@ -2756,6 +2934,10 @@ function calculateEnduranceClubTitles(records, animal) {
     count:"$" + Math.round(totalWinnings).toLocaleString(),
     sort:900
   });
+
+  const auditedProgress = getEnduranceTitleProgressData(records, animal);
+  prefixes.push(...auditedProgress.prefixes);
+  suffixes.push(...auditedProgress.suffixes);
 
   return {
     prefixes: uniqueTitleList(prefixes),
@@ -3712,7 +3894,7 @@ function getClubPanels(records, animal, herdingRules) {
         <h3 class="panel-title">Endurance Club</h3>
         ${enduranceClubSummary(records)}
         <h4 class="subsection-title">Title Progress</h4>
-        ${renderClubProgressTable(data.rows)}
+        ${renderEnduranceTitleProgress(records, animal)}
         <h4 class="subsection-title">Race Records</h4>
         ${renderEnduranceRaceTable(enduranceRecords, "club-records-endurance")}
         ${renderEnduranceAwards(enduranceRecords)}
