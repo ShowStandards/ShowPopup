@@ -3760,6 +3760,10 @@ async function loadRecords() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+// Works whether this file loads normally or is dynamically
+// inserted by the cache-busting GitHub HTML.
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", loadRecords, { once: true });
+} else {
   loadRecords();
-});
+}
