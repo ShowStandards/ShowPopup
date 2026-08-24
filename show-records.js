@@ -3012,8 +3012,29 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
 }
  
 
-function escapeHtml(value) {
+function cleanDisplayText(value) {
   return String(value ?? "")
+    // Remove broken em/en dash sequences and real long dashes from DISPLAY text.
+    .replace(/â€”|â€“|â€•|â€‘|â€’|â€|—|–/g, "")
+    // Remove broken bullet / non-breaking-space garbage.
+    .replace(/â€¢|Â/g, " ")
+    // Repair a few common UTF-8 mojibake characters that may exist in old records.
+    .replace(/â€™|â€˜/g, "'")
+    .replace(/â€œ|â€/g, '"')
+    .replace(/Ã¶/g, "ö")
+    .replace(/Ã¡/g, "á")
+    .replace(/Ã©/g, "é")
+    .replace(/Ãí/g, "í")
+    .replace(/Ã³/g, "ó")
+    .replace(/Ãº/g, "ú")
+    .replace(/Ã±/g, "ñ")
+    // Clean up spacing left behind after garbage removal.
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function escapeHtml(value) {
+  return cleanDisplayText(value)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
