@@ -3574,6 +3574,98 @@ function enduranceClubSummary(records) {
   `;
 }
 
+function isEnduranceClubAwardRecord(record) {
+  const eventType = normalizeKey(record?.association_event_type);
+  const placement = normalizeKey(record?.placement);
+  const classText = normalizeKey(record?.class);
+
+  return (
+    eventType.includes("champion") ||
+    eventType.includes("award") ||
+    placement.includes("circuit champion") ||
+    placement.includes("series champion") ||
+    classText.includes("circuit champion") ||
+    classText.includes("series champion")
+  );
+}
+
+function enduranceDisplayShowName(record) {
+  const raw = String(record?.show_name || "").trim();
+  const generic = normalizeKey(raw);
+
+  if (!raw || generic === "untitled show" || generic === "activity show" || generic === "activities") {
+    return (
+      record?.endurance_conference ||
+      record?.endurance_series ||
+      record?.endurance_circuit ||
+      "Endurance Club"
+    );
+  }
+
+  return raw;
+}
+
+function enduranceDisplayRaceName(record) {
+  return (
+    record?.endurance_race_name ||
+    String(record?.class || "").replace(/^Endurance\s*-\s*/i, "").trim() ||
+    record?.endurance_race_key ||
+    "Endurance Race"
+  );
+}
+
+function renderEnduranceRaceTable(records, tableId) {
+  const races = (records || []).filter(r => !isEnduranceClubAwardRecord(r));
+  if (!races.length) return `<div class="empty">No Endurance Club race records yet.</div>`;
+
+  return `
+    ${yearFilterButtons(races, tableId)}
+    <div class="table-wrap">
+      <table class="records-table" id="${escapeHtml(tableId)}">
+        <thead><tr>
+          <th>Date</th><th>Show</th><th>Race</th><th>Placement</th><th>Points</th><th>Distance</th><th>Money Earned</th>
+        </tr></thead>
+        <tbody>
+          ${races.map(r => `
+            <tr data-year="${escapeHtml(recordYear(r))}">
+              <td>${escapeHtml(r.event_date || "")}</td>
+              <td>${escapeHtml(enduranceDisplayShowName(r))}</td>
+              <td>${escapeHtml(enduranceDisplayRaceName(r))}</td>
+              <td>${escapeHtml(r.placement || "")}</td>
+              <td>${pointsValue(r)}</td>
+              <td>${Number(r?.endurance_distance_km || 0) ? `${Number(r.endurance_distance_km).toLocaleString()} km` : ""}</td>
+              <td>${Number(r?.endurance_winnings || 0) ? `$${Number(r.endurance_winnings).toLocaleString()}` : ""}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderEnduranceAwards(records) {
+  const awards = (records || []).filter(isEnduranceClubAwardRecord);
+  if (!awards.length) return "";
+
+  return `
+    <h4 class="subsection-title">Club Awards</h4>
+    <div class="table-wrap">
+      <table class="titles-table">
+        <thead><tr><th>Award</th><th>Result</th><th>Season / Show</th></tr></thead>
+        <tbody>
+          ${awards.map(r => `
+            <tr>
+              <td>${escapeHtml(r.class || r.association_event_type || "Endurance Club Award")}</td>
+              <td>${escapeHtml(r.placement || "Earned")}</td>
+              <td>${escapeHtml(r.show_name || r.endurance_season || "")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function isHerdingClubRecord(record) {
   if (isHerdingInstinctRecord(record)) return true;
 
@@ -3619,8 +3711,9 @@ function getClubPanels(records, animal, herdingRules) {
         ${enduranceClubSummary(records)}
         <h4 class="subsection-title">Title Progress</h4>
         ${renderClubProgressTable(data.rows)}
-        <h4 class="subsection-title">Club Records</h4>
-        ${renderRecordTable(enduranceRecords, "club-records-endurance")}
+        <h4 class="subsection-title">Race Records</h4>
+        ${renderEnduranceRaceTable(enduranceRecords, "club-records-endurance")}
+        ${renderEnduranceAwards(enduranceRecords)}
       </section>`
     });
   }
