@@ -3089,7 +3089,7 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
     const displayedTitle = title ? displayActivityTitle(title, total.points) : null;
 
     rows.push({
-      activity: total.display_name,
+      activity: cleanActivityDisplayName(total.display_name || total.activity_key),
       title: displayedTitle ? `${displayedTitle} ${title.title_name || ""}`.trim() : "No title yet",
       required: title ? Number(title.points_required || 0) : Number(next?.points_required || 0),
       earned: Number(total.points || 0),
@@ -3581,7 +3581,27 @@ function getClubPanels(records, animal, herdingRules) {
   if (hasHerdingRecords(records)) {
     const data = calculateHerdingTitles(records, animal, herdingRules);
 
-    const instinctRecords = records.filter(r => isHerdingInstinctRecord(r));
+    const instinctRecords = records.filter(r => {
+      if (isHerdingInstinctRecord(r)) return true;
+
+      const activityKey = normalizeKey(r?.activity_key);
+      const text = normalizeKey([
+        r?.class,
+        r?.score_label,
+        r?.show_name
+      ].filter(Boolean).join(" "));
+
+      const isInstinct =
+        text.includes("instinct test") ||
+        text.includes("instinct testing") ||
+        text.includes("herding instinct");
+
+      const isHerding =
+        activityKey === "herding" ||
+        text.includes("herding");
+
+      return isInstinct && isHerding;
+    });
 
     const herdingRecords = records.filter(r => {
       if (isHerdingInstinctRecord(r)) return false;
