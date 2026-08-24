@@ -3574,16 +3574,36 @@ function enduranceClubSummary(records) {
   `;
 }
 
+function isHerdingClubRecord(record) {
+  if (isHerdingInstinctRecord(record)) return true;
+
+  const associationKey = normalizeKey(record?.association_key);
+  const showName = normalizeKey(record?.show_name);
+  const classText = normalizeKey(record?.class);
+  const labelText = normalizeKey(record?.score_label);
+  const combined = `${showName} ${classText} ${labelText}`.trim();
+
+  // Explicitly stored club records.
+  if (associationKey === "herding club") {
+    return (
+      combined.includes("stakes") ||
+      combined.includes("instinct")
+    );
+  }
+
+  // Historical/legacy club uploads may not have association_key,
+  // but the show/class text clearly identifies Herding Club Stakes.
+  const isClubShow = showName.includes("herding club");
+  const isStakes =
+    combined.includes("stakes") ||
+    /\b(beginners?|advanced|expert|championship|puppy)\b/.test(classText) &&
+    /\b(sheep|cattle|duck|ducks|reindeer)\b/.test(classText);
+
+  return isClubShow && isStakes;
+}
+
 function hasHerdingRecords(records) {
-  return (records || []).some(r => {
-    if (isHerdingInstinctRecord(r)) return true;
-
-    const key = normalizeKey(r?.activity_key);
-    const cls = normalizeKey(r?.class);
-    const label = normalizeKey(r?.score_label);
-
-    return key === "herding" || cls.startsWith("herding") || label.startsWith("herding");
-  });
+  return (records || []).some(isHerdingClubRecord);
 }
 
 function getClubPanels(records, animal, herdingRules) {
@@ -3634,35 +3654,10 @@ function getClubPanels(records, animal, herdingRules) {
   }
 
   if (hasHerdingRecords(records)) {
-    const data = calculateHerdingTitles(records, animal, herdingRules);
+    const clubHerdingRecords = records.filter(isHerdingClubRecord);
+    const data = calculateHerdingTitles(clubHerdingRecords, animal, herdingRules);
 
-    const herdingRecords = records.filter(r => {
-      // Herding Instinct Testing belongs in the Herding Records table too.
-      if (isHerdingInstinctRecord(r)) return true;
-
-      const activityKey = normalizeKey(r?.activity_key);
-      const text = normalizeKey([
-        r?.class,
-        r?.score_label,
-        r?.show_name
-      ].filter(Boolean).join(" "));
-
-      const isInstinct =
-        text.includes("instinct test") ||
-        text.includes("instinct testing") ||
-        text.includes("herding instinct");
-
-      const isHerding =
-        activityKey === "herding" ||
-        text.includes("herding");
-
-      if (isInstinct && isHerding) return true;
-
-      const cls = normalizeKey(r?.class);
-      const label = normalizeKey(r?.score_label);
-
-      return activityKey === "herding" || cls.startsWith("herding") || label.startsWith("herding");
-    });
+    const herdingRecords = records.filter(isHerdingClubRecord);
 
     panels.push({
       key:"herding", label:"Herding Club",
