@@ -376,24 +376,53 @@ function highestTitle(points, rules) {
     })[0] || null;
 }
 
+function ruleIsRepeatable(rule) {
+  const raw = String(rule?.repeatable ?? "").trim().toLowerCase();
+
+  if (
+    rule?.repeatable === true ||
+    ["true", "1", "yes", "y"].includes(raw)
+  ) {
+    return true;
+  }
+
+  // Some rules identify multiplier behavior by having a repeat increment
+  // even if repeatable itself is blank/legacy.
+  const increment = Number(rule?.repeat_increment);
+  return Number.isFinite(increment) && increment > 0;
+}
+
 function hasMaxedBaseTitle(points, rules) {
   const totalPoints = Number(points || 0);
-  const ladder = (rules || []).filter(r => Number(r.points_required || 0) > 0);
+
+  const ladder = (rules || [])
+    .filter(r => Number(r?.points_required || 0) > 0)
+    .slice()
+    .sort((a, b) => Number(a.points_required || 0) - Number(b.points_required || 0));
+
   if (!ladder.length) return false;
 
-  const repeatableRules = ladder.filter(r => isTrueValue(r.repeatable));
-  const nonRepeatableRules = ladder.filter(r => !isTrueValue(r.repeatable));
+  const repeatableRules = ladder.filter(ruleIsRepeatable);
 
   /*
-    "Maxed" means the animal has completed the ordinary/base ladder.
-    If a repeatable/multiplier rule exists, its starting threshold is the
-    final base milestone. Otherwise the highest normal rule is the milestone.
+    If the ladder has multiplier/repeatable titles, the FIRST repeatable
+    threshold is the point where the ordinary ladder has been maxed.
+
+    Example:
+      SHA @ 150, repeat every +150
+      150 = SHA      -> medal
+      300 = SHA2     -> medal
+      450 = SHA3     -> medal
+
+    If there is no repeatable rule, the final rule in the ladder is the max.
   */
   const maxBaseThreshold = repeatableRules.length
-    ? Math.min(...repeatableRules.map(r => Number(r.points_required || 0)))
-    : Math.max(...nonRepeatableRules.map(r => Number(r.points_required || 0)));
+    ? Number(repeatableRules[0].points_required || 0)
+    : Number(ladder[ladder.length - 1].points_required || 0);
 
-  return Number.isFinite(maxBaseThreshold) && totalPoints >= maxBaseThreshold;
+  return Number.isFinite(maxBaseThreshold) &&
+         maxBaseThreshold > 0 &&
+         totalPoints >= maxBaseThreshold;
 }
 
 function toRoman(num) {
@@ -3179,7 +3208,7 @@ function renderPointBasedTitles(rows) {
             ${rows.map(row => `
               <tr>
                 <td>${escapeHtml(row.activity)}</td>
-                <td>${escapeHtml(row.title)}${row.maxed ? ` <span class="max-title-ribbon" title="Maximum base title reached" aria-label="Maximum base title reached">🏅</span>` : ""}</td>
+                <td class="${row.maxed ? "maxed-title-cell" : ""}">${escapeHtml(row.title)}${row.maxed ? ` <span class="max-title-medal" title="Maximum base title reached" aria-label="Maximum base title reached">🏅</span>` : ""}</td>
                 <td>${row.required ? Number(row.required).toLocaleString() : ""}</td>
                 <td>${Number(row.earned || 0).toLocaleString()}</td>
                 <td><span class="status-pill ${row.status === "Earned" ? "earned" : "progress"}">${escapeHtml(row.status)}</span></td>
