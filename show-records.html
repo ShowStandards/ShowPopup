@@ -6,20 +6,9 @@
 
 <title>Show Records</title>
 
-<!--
-  Show Records
-  GitHub-hosted version
-
-  CSS and JS are loaded with the same cache-busting value
-  passed in from the Jcink loader.
--->
-
 <script>
 (function () {
   const params = new URLSearchParams(window.location.search);
-
-  // Jcink supplies this automatically.
-  // Date.now() is only a fallback if the page is opened directly.
   const version = params.get("v") || Date.now();
 
   const css = document.createElement("link");
