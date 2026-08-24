@@ -126,7 +126,7 @@ function activityBaseKey(text) {
   const key = normalizeKey(normalizeActivityClassName(text)).trim();
 
   /*
-    Historical alias repair â€” Show Hunter / Show Hunters are ONE activity.
+    Historical alias repair | Show Hunter / Show Hunters are ONE activity.
     Keep this deliberately exact so no other activity or title family is changed.
   */
   if (key === "show hunters") return "show hunter";
@@ -528,7 +528,7 @@ function manualScoreLabel(record) {
 
   if (scoreText === "-") return status;
 
-  return `${status} â€” ${scoreText}`;
+  return `${status} | ${scoreText}`;
 }
 
 function bestManualScoreForTitle(records, code) {
@@ -904,7 +904,7 @@ function formatScore(record) {
     parts.push("Fail");
   }
 
-  return parts.length ? parts.join(" â€” ") : "-";
+  return parts.length ? parts.join(" | ") : "-";
 }
 
 
@@ -1142,7 +1142,7 @@ function calculateBreedingAwardTitles(animal) {
       suffixes: [],
       rows: [{
         titleName: "Breeding Awards",
-        titleCode: "—",
+        titleCode: "",
         count: "Temporarily unable to load offspring achievement data",
         sort: 269
       }]
@@ -2034,7 +2034,7 @@ function calculateHerdingTitles(records, animal, herdingRules) {
           ? rule.title_name || "Herding Instinct Certificate"
           : rule.earned
             ? rule.title_name
-            : `${rule.division}${rule.stock ? " â€” " + rule.stock : ""} â€” In Progress`;
+            : `${rule.division}${rule.stock ? " | " + rule.stock : ""} | In Progress`;
 
       return {
         titleName: progressName,
@@ -2181,7 +2181,7 @@ function calculateIcelandicAssociationTitles(records, animal) {
     rows.push({
       titleName: "Breeding Show Grand Champion",
       titleCode: "BSGCh.",
-      count: breedingCertificates + " certificates â€¢ " + breedingPoints + " IHASS Breeding points",
+      count: breedingCertificates + " certificates | " + breedingPoints + " IHASS Breeding points",
       sort: 782
     });
   } else if (breedingCertificates >= 3 && breedingPoints >= 500) {
@@ -2189,7 +2189,7 @@ function calculateIcelandicAssociationTitles(records, animal) {
     rows.push({
       titleName: "Breeding Show Champion",
       titleCode: "BSCh.",
-      count: breedingCertificates + " certificates â€¢ " + breedingPoints + " IHASS Breeding points",
+      count: breedingCertificates + " certificates | " + breedingPoints + " IHASS Breeding points",
       sort: 782
     });
   }
@@ -2292,7 +2292,7 @@ function calculateHuntingClubTitles(records, animal) {
       suffixes.push(code);
 
       rows.push({
-        titleName: levelDef.label + ' ' + familyDef.label + ' â€” ' + specDef[0],
+        titleName: levelDef.label + ' ' + familyDef.label + ' | ' + specDef[0],
         titleCode: code,
         count: group.counts[earnedLevel] + ' qualifying tests',
         sort: 770
@@ -2300,8 +2300,8 @@ function calculateHuntingClubTitles(records, animal) {
     } else {
       const next = SS_HUNTING_TITLE_LEVELS.beginners;
       rows.push({
-        titleName: familyDef.label + ' â€” ' + specDef[0] + ' Field Test',
-        titleCode: 'â€”',
+        titleName: familyDef.label + ' | ' + specDef[0] + ' Field Test',
+        titleCode: '',
         count: group.counts.beginners + '/' + next.required + ' Beginners qualifications',
         sort: 771
       });
@@ -2426,7 +2426,7 @@ function calculateEnduranceClubTitles(records, animal) {
   }
 
   /*
-    DISTANCE TITLES â€” Endurance Club kilometres only.
+    DISTANCE TITLES | Endurance Club kilometres only.
   */
   if (totalDistance >= 100000) {
     prefixes.push("EdDL");
@@ -2443,7 +2443,7 @@ function calculateEnduranceClubTitles(records, animal) {
   }
 
   /*
-    EARNINGS TITLES â€” actual money stored on Endurance Club records only.
+    EARNINGS TITLES | actual money stored on Endurance Club records only.
   */
   const moneyLabel = "$" + Math.round(totalWinnings).toLocaleString();
 
@@ -2579,7 +2579,7 @@ function calculateEnduranceClubTitles(records, animal) {
         rows.push({
           titleName:"World Tour Circuit Completion",
           titleCode:worldCodes.completion,
-          count:`${seasonNumber} â€¢ ${series === "gemstone" ? "GemStone" : "Crystal"} path`,
+          count:`${seasonNumber} | ${series === "gemstone" ? "GemStone" : "Crystal"} path`,
           sort:834
         });
       }
@@ -2589,7 +2589,7 @@ function calculateEnduranceClubTitles(records, animal) {
         rows.push({
           titleName:"World Tour Circuit Excellence",
           titleCode:worldCodes.excellence,
-          count:`${seasonNumber} â€¢ ${series === "gemstone" ? "GemStone" : "Crystal"} path`,
+          count:`${seasonNumber} | ${series === "gemstone" ? "GemStone" : "Crystal"} path`,
           sort:835
         });
       }
@@ -2599,7 +2599,7 @@ function calculateEnduranceClubTitles(records, animal) {
         rows.push({
           titleName:"World Tour Circuit Sweep",
           titleCode:worldCodes.sweep,
-          count:`${seasonNumber} â€¢ ${series === "gemstone" ? "GemStone" : "Crystal"} path`,
+          count:`${seasonNumber} | ${series === "gemstone" ? "GemStone" : "Crystal"} path`,
           sort:836
         });
 
@@ -2631,7 +2631,7 @@ function calculateEnduranceClubTitles(records, animal) {
       rows.push({
         titleName: `${circuit} Champion`,
         titleCode: codeMap.champion,
-        count: `${record.endurance_season} â€¢ ${Number(record.endurance_circuit_points ?? record.points ?? 0).toLocaleString()} circuit points`,
+        count: `${record.endurance_season} | ${Number(record.endurance_circuit_points ?? record.points ?? 0).toLocaleString()} circuit points`,
         sort: 833
       });
     });
@@ -2694,14 +2694,14 @@ function calculateEnduranceClubTitles(records, animal) {
   */
   rows.push({
     titleName:"Endurance Club Distance",
-    titleCode:"â€”",
+    titleCode:"",
     count:`${Math.round(totalDistance).toLocaleString()} km completed`,
     sort:899
   });
 
   rows.push({
     titleName:"Endurance Club Winnings",
-    titleCode:"â€”",
+    titleCode:"",
     count:"$" + Math.round(totalWinnings).toLocaleString(),
     sort:900
   });
@@ -3137,7 +3137,7 @@ function renderPointBasedTitles(rows) {
               <tr>
                 <td>${escapeHtml(row.activity)}</td>
                 <td>${escapeHtml(row.title)}</td>
-                <td>${row.required ? Number(row.required).toLocaleString() : "—"}</td>
+                <td>${row.required ? Number(row.required).toLocaleString() : ""}</td>
                 <td>${Number(row.earned || 0).toLocaleString()}</td>
                 <td><span class="status-pill ${row.status === "Earned" ? "earned" : "progress"}">${escapeHtml(row.status)}</span></td>
               </tr>
@@ -3174,7 +3174,7 @@ function renderVersatilityPanel(animal, titleData) {
   const levels = getBestVersatilityByCategory(animal, earnedCodes);
   const names = versatilityCategoryNames(animal?.species);
   const categories = Object.keys(names).map(Number).sort((a,b) => a-b);
-  const levelLetter = n => ["—","A","B","C","D","E"][Number(n) || 0] || "—";
+  const levelLetter = n => ["","A","B","C","D","E"][Number(n) || 0] || "";
 
   return `
     <section class="panel">
@@ -3185,7 +3185,7 @@ function renderVersatilityPanel(animal, titleData) {
         </div>
         <div class="versatility-current">
           <span>Current Versatility Title</span>
-          <strong>${current ? `${escapeHtml(current.code)} — ${escapeHtml(current.name)}` : "Not yet earned"}</strong>
+          <strong>${current ? `${escapeHtml(current.code)} | ${escapeHtml(current.name)}` : "Not yet earned"}</strong>
         </div>
       </div>
 
