@@ -3237,6 +3237,170 @@ function renderVersatilityPanel(animal, titleData) {
   `;
 }
 
+
+function isTestingCertificateRecord(record) {
+  if (canonicalShowType(record?.show_type) !== "activity") return false;
+
+  const activityKey = normalizeKey(record?.activity_key);
+  const classText = normalizeKey(record?.class);
+  const labelText = normalizeKey(record?.score_label);
+  const showText = normalizeKey(record?.show_name);
+  const combined = `${activityKey} ${classText} ${labelText} ${showText}`;
+
+  return (
+    activityKey === "temperament test" ||
+    activityKey === "temperament_test" ||
+    activityKey === "therapy animal" ||
+    activityKey === "therapy_animal" ||
+    ["cgc","cgcb","cgcs","cgcg","cgca","cgcu"].includes(activityKey) ||
+    combined.includes("temperament test") ||
+    combined.includes("therapy animal") ||
+    combined.includes("canine good citizen") ||
+    /\bcgc\b/.test(combined)
+  );
+}
+
+function testingCertificateLabel(record) {
+  const key = normalizeKey(record?.activity_key);
+  const text = normalizeKey(`${record?.class || ""} ${record?.score_label || ""} ${record?.show_name || ""}`);
+
+  if (key === "temperament test" || key === "temperament_test" || text.includes("temperament test")) {
+    return "Temperament Testing";
+  }
+  if (key === "therapy animal" || key === "therapy_animal" || text.includes("therapy animal")) {
+    return "Therapy Animal";
+  }
+  if (["cgc","cgcb","cgcs","cgcg","cgca","cgcu"].includes(key) || text.includes("canine good citizen") || /\bcgc\b/.test(text)) {
+    return "Canine Good Citizen";
+  }
+  return "Testing & Certificates";
+}
+
+function renderTestingCertificatesPanel(records, animal) {
+  const testingRecords = (records || []).filter(isTestingCertificateRecord);
+  if (!testingRecords.length) return "";
+
+  const titleData = calculateTestingTitles(records, animal);
+  const grouped = ["Temperament Testing", "Therapy Animal", "Canine Good Citizen"]
+    .map(label => ({ label, records: testingRecords.filter(r => testingCertificateLabel(r) === label) }))
+    .filter(group => group.records.length);
+
+  return `
+    <section class="panel">
+      <h3 class="panel-title">Testing & Certificates</h3>
+      ${titleData.rows?.length ? `
+        <div class="testing-title-grid">
+          ${titleData.rows.map(row => `
+            <div class="testing-title-card">
+              <span>${escapeHtml(row.titleName || "")}</span>
+              <strong>${escapeHtml(row.titleCode || "")}</strong>
+              <small>${escapeHtml(row.count || "")}</small>
+            </div>
+          `).join("")}
+        </div>
+      ` : ""}
+
+      ${grouped.map(group => `
+        <h4 class="subsection-title">${escapeHtml(group.label)}</h4>
+        <div class="table-wrap">
+          <table class="records-table">
+            <thead><tr>
+              <th>Date</th><th>Show</th><th>Test</th><th>Result</th><th>Score</th>
+            </tr></thead>
+            <tbody>
+              ${group.records.map(r => `
+                <tr>
+                  <td>${escapeHtml(r.event_date || "")}</td>
+                  <td>${escapeHtml(r.show_name || "")}</td>
+                  <td>${escapeHtml(r.class || r.score_label || group.label)}</td>
+                  <td>${recordPassed(r) === true ? "Pass" : recordPassed(r) === false ? "Fail" : "Recorded"}</td>
+                  <td>${escapeHtml(formatScore(r))}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `).join("")}
+    </section>
+  `;
+}
+
+function activityFilterKey(record, activityTypes) {
+  const activity = resolveActivityForRecord(record, activityTypes);
+  return activityBaseKey(activity?.activity_key || activity?.display_name || record?.activity_key || record?.class || "unknown");
+}
+
+function activityFilterLabel(record, activityTypes) {
+  const activity = resolveActivityForRecord(record, activityTypes);
+  return activity?.display_name || activity?.activity_key || fallbackActivityNameFromClass(record?.class) || "Other";
+}
+
+function activityFilterButtons(records, tableId, activityTypes) {
+  const byKey = new Map();
+
+  (records || []).forEach(record => {
+    const key = activityFilterKey(record, activityTypes);
+    if (!key || byKey.has(key)) return;
+    byKey.set(key, activityFilterLabel(record, activityTypes));
+  });
+
+  const entries = [...byKey.entries()].sort((a,b) => String(a[1]).localeCompare(String(b[1])));
+  if (entries.length <= 1) return "";
+
+  return `
+    <div class="activity-tabs" data-target="${escapeHtml(tableId)}">
+      <button type="button" class="activity-tab active" data-activity="all">All Activities</button>
+      ${entries.map(([key,label]) => `
+        <button type="button" class="activity-tab" data-activity="${escapeHtml(key)}">${escapeHtml(label)}</button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderActivityRecordTable(records, tableId, activityTypes) {
+  if (!records.length) return `<div class="empty">No activity records in this section.</div>`;
+
+  return `
+    ${activityFilterButtons(records, tableId, activityTypes)}
+    ${yearFilterButtons(records, tableId)}
+    <div class="table-wrap">
+      <table class="records-table" id="${escapeHtml(tableId)}">
+        <thead><tr>
+          <th>Date</th><th>Show</th><th>Activity</th><th>Class</th><th>Placement</th><th>Points</th><th>Score</th>
+        </tr></thead>
+        <tbody>
+          ${records.map(r => `
+            <tr data-year="${escapeHtml(recordYear(r))}" data-activity="${escapeHtml(activityFilterKey(r, activityTypes))}">
+              <td>${escapeHtml(r.event_date || "")}</td>
+              <td>${escapeHtml(r.show_name || "")}</td>
+              <td>${escapeHtml(activityFilterLabel(r, activityTypes))}</td>
+              <td>${escapeHtml(displayRecordClass(r, records))}</td>
+              <td>${escapeHtml(r.placement || "")}</td>
+              <td>${pointsValue(r)}</td>
+              <td>${escapeHtml(formatScore(r))}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function applyRecordFilters(table) {
+  if (!table) return;
+  const root = table.closest(".panel") || table.parentElement?.parentElement || document;
+  const yearGroup = root.querySelector(`.year-tabs[data-target="${table.id}"]`);
+  const activityGroup = root.querySelector(`.activity-tabs[data-target="${table.id}"]`);
+  const year = yearGroup?.querySelector(".year-tab.active")?.dataset.year || "all";
+  const activity = activityGroup?.querySelector(".activity-tab.active")?.dataset.activity || "all";
+
+  table.querySelectorAll("tbody tr").forEach(row => {
+    const yearOk = year === "all" || row.dataset.year === year;
+    const activityOk = activity === "all" || row.dataset.activity === activity;
+    row.hidden = !(yearOk && activityOk);
+  });
+}
+
 function recordYear(record) {
   const match = String(record?.event_date || "").match(/^(\d{4})/);
   return match ? match[1] : "Unknown";
@@ -3438,12 +3602,16 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
   const pointRows = getPointBasedTitleRows(records, titleRules, activityRules, activityTypes);
   const clubs = getClubPanels(records, animal, herdingRules);
   const conformation = records.filter(r => canonicalShowType(r.show_type) === "conformation");
-  const activities = collapseTeamActivityRecords(records.filter(r => canonicalShowType(r.show_type) === "activity"));
+  const testingRecords = records.filter(isTestingCertificateRecord);
+  const activities = collapseTeamActivityRecords(records.filter(r =>
+    canonicalShowType(r.show_type) === "activity" && !isTestingCertificateRecord(r)
+  ));
 
   const nav = [
     {key:"overview", label:"Overview"},
     {key:"conformation", label:"Conformation Records"},
     {key:"activities", label:"Activity Records"},
+    ...(testingRecords.length ? [{key:"testing", label:"Testing & Certificates"}] : []),
     {key:"versatility", label:"Versatility"},
     ...clubs.map(c => ({key:`club-${c.key}`, label:c.label}))
   ];
@@ -3483,9 +3651,15 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
       <section class="tab-panel" data-panel="activities">
         <section class="panel">
           <h3 class="panel-title">Activity Records</h3>
-          ${renderRecordTable(activities, "activity-records-table")}
+          ${renderActivityRecordTable(activities, "activity-records-table", activityTypes)}
         </section>
       </section>
+
+      ${testingRecords.length ? `
+        <section class="tab-panel" data-panel="testing">
+          ${renderTestingCertificatesPanel(records, animal)}
+        </section>
+      ` : ""}
 
       <section class="tab-panel" data-panel="versatility">
         ${renderVersatilityPanel(animal, titleData)}
@@ -3516,12 +3690,16 @@ function wireShowRecordTabs() {
       const button = event.target.closest(".year-tab");
       if (!button) return;
       group.querySelectorAll(".year-tab").forEach(btn => btn.classList.toggle("active", btn === button));
-      const table = document.getElementById(group.dataset.target);
-      if (!table) return;
-      const selected = button.dataset.year;
-      table.querySelectorAll("tbody tr").forEach(row => {
-        row.hidden = selected !== "all" && row.dataset.year !== selected;
-      });
+      applyRecordFilters(document.getElementById(group.dataset.target));
+    });
+  });
+
+  document.querySelectorAll(".activity-tabs").forEach(group => {
+    group.addEventListener("click", event => {
+      const button = event.target.closest(".activity-tab");
+      if (!button) return;
+      group.querySelectorAll(".activity-tab").forEach(btn => btn.classList.toggle("active", btn === button));
+      applyRecordFilters(document.getElementById(group.dataset.target));
     });
   });
 }
