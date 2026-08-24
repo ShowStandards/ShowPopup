@@ -1,4 +1,3 @@
-
 const supabaseUrl = "https://vyuklkrqusfvrcaqxmfm.supabase.co";
 const supabaseKey = "sb_publishable_2LSbJafkRatck5Ei8HXL-g_0tezT6qu";
 
@@ -3012,191 +3011,384 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
   };
 }
  
-function renderTitles(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules) {
-  const titleData = calculateTitleData(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules);
 
-  const registeredName = `
-    ${titleData.prefixTitles.join(" ")}
-    ${animal?.name || "Unnamed"}
-    ${titleData.suffixTitles.join(" ")}
-  `.replace(/\s+/g, " ").trim();
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
 
-  const pointTitleRows = [];
+function buildRegisteredName(animal, titleData) {
+  return [
+    ...(titleData?.prefixTitles || []),
+    animal?.name || "Unnamed",
+    ...(titleData?.suffixTitles || [])
+  ].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+}
 
+function getPointBasedTitleRows(records, titleRules, activityRules, activityTypes) {
+  const rows = [];
   const conformationRecords = records.filter(r => canonicalShowType(r.show_type) === "conformation");
   const conformationPoints = conformationRecords.reduce((sum, r) => sum + pointsValue(r), 0);
-  const confRules = titleRules.filter(r => normalizeKey(r.applies_to) === "conformation");
-  const confTitle = highestTitle(conformationPoints, confRules);
+  const confRules = (titleRules || [])
+    .filter(r => normalizeKey(r.applies_to) === "conformation")
+    .slice().sort((a,b) => Number(a.points_required || 0) - Number(b.points_required || 0));
 
-  pointTitleRows.push({
+  const confTitle = highestTitle(conformationPoints, confRules);
+  const confNext = confRules.find(r => Number(r.points_required || 0) > conformationPoints);
+
+  rows.push({
     activity: "Conformation",
-    title: confTitle
-      ? `${confTitle.title_code} ${confTitle.title_name || ""}`.trim()
-      : "No title yet",
-    points: conformationPoints,
+    title: confTitle ? `${confTitle.title_code} ${confTitle.title_name || ""}`.trim() : "No title yet",
+    required: confTitle ? Number(confTitle.points_required || 0) : Number(confNext?.points_required || 0),
+    earned: conformationPoints,
+    status: confTitle ? "Earned" : "In Progress",
     sort: 0
   });
 
-  const activityRecords = records.filter(r => canonicalShowType(r.show_type) === "activity" && !isManualScoreRecord(r) && !isBestInFieldActivityRecord(r));
+  const activityRecords = records.filter(r =>
+    canonicalShowType(r.show_type) === "activity" &&
+    !isManualScoreRecord(r) &&
+    !isBestInFieldActivityRecord(r)
+  );
   const activityTotals = calculateActivityTotals(activityRecords, activityTypes);
 
-  Object.keys(activityTotals).forEach(key => {
-    const total = activityTotals[key];
-
-    // Herding Club qualifications use their own score/count title logic.
-    // Keep the records and activity points, but do not create misleading
-    // Point-Based Title rows for each Stakes division or Instinct Test.
-    const herdingText = normalizeKey(
-      `${total.activity_key || ""} ${total.display_name || ""}`
-    );
-
+  Object.values(activityTotals).forEach(total => {
+    const herdingText = normalizeKey(`${total.activity_key || ""} ${total.display_name || ""}`);
     if (
       herdingText.includes("herding stakes") ||
       herdingText.includes("herding instinct") ||
       herdingText === "herding"
-    ) {
-      return;
-    }
+    ) return;
 
-    const rules = getActivityRulesForTotal(total, activityRules);
+    const rules = getActivityRulesForTotal(total, activityRules)
+      .slice().sort((a,b) => Number(a.points_required || 0) - Number(b.points_required || 0));
     const title = highestTitle(total.points, rules);
+    const next = rules.find(r => Number(r.points_required || 0) > Number(total.points || 0));
     const displayedTitle = title ? displayActivityTitle(title, total.points) : null;
 
-    pointTitleRows.push({
+    rows.push({
       activity: total.display_name,
-      title: displayedTitle
-        ? `${displayedTitle} ${title.title_name || ""}`.trim()
-        : "No title yet",
-      points: total.points,
+      title: displayedTitle ? `${displayedTitle} ${title.title_name || ""}`.trim() : "No title yet",
+      required: title ? Number(title.points_required || 0) : Number(next?.points_required || 0),
+      earned: Number(total.points || 0),
+      status: title ? "Earned" : "In Progress",
       sort: 1
     });
   });
 
-  const awardTitleRows = [...titleData.awardTitleRows];
+  return rows.sort((a,b) => a.sort - b.sort || String(a.activity).localeCompare(String(b.activity)));
+}
 
-  function addManualRows(value) {
-    const rawCodes = String(value || "")
-      .split(/\s+/)
-      .map(t => t.trim())
-      .filter(Boolean);
+function isBestInGroupPlacement(record) {
+  const p = normalizeKey(record?.placement);
+  if (p.includes("reserve")) return false;
+  return p === "big" || p === "best in group" || p.startsWith("best in group ");
+}
 
-    const cgcCodes = [];
-    const otherCodes = [];
+function isBestOfBreedPlacement(record) {
+  const p = normalizeKey(record?.placement);
+  if (p.includes("reserve")) return false;
+  return p === "bob" || p === "best of breed" || p.startsWith("best of breed ");
+}
 
-    rawCodes.forEach(code => {
-      if (manualSuffixDisplayGroup(code) === "cgc") {
-        cgcCodes.push(code);
-      } else {
-        otherCodes.push(code);
-      }
-    });
+function buildHighlights(records) {
+  const totalPoints = records.reduce((sum,r) => sum + pointsValue(r), 0);
+  const bis = countUniqueAwardWins(records, isAllBreedBestInShow, "bis");
+  const biss = countUniqueAwardWins(records, isSpecialtyBestInShow, "biss");
+  const bif = countUniqueAwardWins(records, isBestInFieldWin, "bif");
+  const big = countUniqueAwardWins(records, isBestInGroupPlacement, "big");
+  const bob = countUniqueAwardWins(records, isBestOfBreedPlacement, "bob");
 
-    const displayCodes = [
-      ...otherCodes,
-      ...highestManualTitleBySort(cgcCodes)
-    ];
+  const items = [
+    ["Best in Show Wins", bis],
+    ["Best in Specialty Show Wins", biss],
+    ["Best in Field Wins", bif],
+    ["Best in Group Wins", big],
+    ["Best of Breed Wins", bob],
+    ["Total Points (All Time)", totalPoints.toLocaleString()],
+    ["Total Records", records.length.toLocaleString()]
+  ];
 
-    displayCodes.forEach(code => {
-      const scoreRecord = bestManualScoreForTitle(records, code);
-      const group = manualSuffixDisplayGroup(code);
-      let sort = manualTitleSort(code);
+  return `
+    <section class="panel highlights-panel">
+      <h3 class="panel-title">Highlights</h3>
+      <div class="highlight-list">
+        ${items.map(([label,value]) => `
+          <div class="highlight-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>
+        `).join("")}
+      </div>
+    </section>
+  `;
+}
 
-      if (group === "manual") sort = 200 + sort;
-      if (group === "cgc") sort = 500 + sort;
-      if (group === "therapyTemperament") sort = 600 + sort;
+function renderPointBasedTitles(rows) {
+  if (!rows.length) return `<div class="empty">No point-based title data yet.</div>`;
+  return `
+    <section class="panel">
+      <h3 class="panel-title">Point-Based Titles</h3>
+      <div class="table-wrap">
+        <table class="titles-table">
+          <thead><tr>
+            <th>Activity</th><th>Title</th><th>Required Points</th><th>Earned Points</th><th>Status</th>
+          </tr></thead>
+          <tbody>
+            ${rows.map(row => `
+              <tr>
+                <td>${escapeHtml(row.activity)}</td>
+                <td>${escapeHtml(row.title)}</td>
+                <td>${row.required ? Number(row.required).toLocaleString() : "—"}</td>
+                <td>${Number(row.earned || 0).toLocaleString()}</td>
+                <td><span class="status-pill ${row.status === "Earned" ? "earned" : "progress"}">${escapeHtml(row.status)}</span></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
 
-      awardTitleRows.push({
-        titleName: manualTitleName(code),
-        titleCode: code,
-        count: scoreRecord ? manualScoreLabel(scoreRecord) : "Earned",
-        sort
-      });
+function versatilityCategoryNames(species) {
+  const s = normalizeKey(species);
+  if (s === "dog") return {
+    1:"Obedience & Rally", 2:"Conformation, Trick & Testing", 3:"Hunting Sports",
+    4:"Protection & Work Sports", 5:"Performance Sports", 6:"Strength & Skill Sports",
+    7:"Tracking & Search and Rescue"
+  };
+  if (s === "cat") return {
+    1:"Conformation & Trick", 2:"Agility, Obedience & Rally",
+    3:"Fishing, Retrieving & Scent", 4:"Stunt, Vaulting, Treibball & High Jump"
+  };
+  if (s === "horse") return {
+    1:"Conformation, Trick & Testing", 2:"Dressage Sports", 3:"Driving Sports",
+    4:"Gaited Sports", 5:"Racing & Endurance", 6:"English Sports",
+    7:"Western Sports", 8:"Cow Horse Sports"
+  };
+  return {};
+}
+
+function renderVersatilityPanel(animal, titleData) {
+  const earnedCodes = [...(titleData?.prefixTitles || []), ...(titleData?.suffixTitles || [])];
+  const current = calculateVersatilityTitle(animal, earnedCodes);
+  const levels = getBestVersatilityByCategory(animal, earnedCodes);
+  const names = versatilityCategoryNames(animal?.species);
+  const categories = Object.keys(names).map(Number).sort((a,b) => a-b);
+  const levelLetter = n => ["—","A","B","C","D","E"][Number(n) || 0] || "—";
+
+  return `
+    <section class="panel">
+      <div class="versatility-heading">
+        <div>
+          <h3 class="panel-title">Versatility</h3>
+          <p class="panel-subtitle">Highest qualifying title in each category is used. Higher levels substitute downward.</p>
+        </div>
+        <div class="versatility-current">
+          <span>Current Versatility Title</span>
+          <strong>${current ? `${escapeHtml(current.code)} — ${escapeHtml(current.name)}` : "Not yet earned"}</strong>
+        </div>
+      </div>
+
+      <div class="versatility-counts">
+        ${[1,2,3,4,5].map(level => `
+          <div class="mini-stat">
+            <span>Level ${["","A","B","C","D","E"][level]}+</span>
+            <strong>${countVersatilityCategoriesAtLeast(levels, level)}</strong>
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="table-wrap">
+        <table class="titles-table">
+          <thead><tr><th>Category</th><th>Area</th><th>Highest Level</th></tr></thead>
+          <tbody>
+            ${categories.map(category => `
+              <tr>
+                <td>Category ${category}</td>
+                <td>${escapeHtml(names[category])}</td>
+                <td><strong>${levelLetter(levels[category])}</strong></td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function recordYear(record) {
+  const match = String(record?.event_date || "").match(/^(\d{4})/);
+  return match ? match[1] : "Unknown";
+}
+
+function yearFilterButtons(records, targetId) {
+  const years = [...new Set((records || []).map(recordYear).filter(y => y !== "Unknown"))]
+    .sort((a,b) => Number(b) - Number(a));
+  if (!years.length) return "";
+
+  return `
+    <div class="year-tabs" data-target="${escapeHtml(targetId)}">
+      <button type="button" class="year-tab active" data-year="all">All Years</button>
+      ${years.map(year => `<button type="button" class="year-tab" data-year="${year}">${year}</button>`).join("")}
+    </div>
+  `;
+}
+
+function renderRecordTable(records, tableId) {
+  if (!records.length) return `<div class="empty">No records in this section.</div>`;
+
+  return `
+    ${yearFilterButtons(records, tableId)}
+    <div class="table-wrap">
+      <table class="records-table" id="${escapeHtml(tableId)}">
+        <thead><tr>
+          <th>Date</th><th>Show</th><th>Class</th><th>Placement</th><th>Points</th><th>Score</th>
+        </tr></thead>
+        <tbody>
+          ${records.map(r => `
+            <tr data-year="${escapeHtml(recordYear(r))}">
+              <td>${escapeHtml(r.event_date || "-")}</td>
+              <td>${escapeHtml(r.show_name || "-")}</td>
+              <td>${escapeHtml(displayRecordClass(r, records))}</td>
+              <td>${escapeHtml(r.placement || "-")}</td>
+              <td>${pointsValue(r)}</td>
+              <td>${escapeHtml(formatScore(r))}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderClubProgressTable(rows) {
+  if (!rows?.length) return `<div class="empty">This animal has club records, but no club title has been earned yet.</div>`;
+  return `
+    <div class="table-wrap">
+      <table class="titles-table">
+        <thead><tr><th>Title</th><th>Code</th><th>Progress / Qualification</th></tr></thead>
+        <tbody>
+          ${rows.slice().sort((a,b) => Number(a.sort || 0) - Number(b.sort || 0)).map(row => `
+            <tr>
+              <td>${escapeHtml(row.titleName || "")}</td>
+              <td>${escapeHtml(row.titleCode || "")}</td>
+              <td>${escapeHtml(row.count || "Earned")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function enduranceClubSummary(records) {
+  const club = (records || []).filter(r => normalizeKey(r?.association_key) === "endurance club");
+  const completed = club.filter(r => r?.endurance_completed === true || recordPassed(r) === true);
+  const totalDistance = completed.reduce((sum,r) => sum + (Number(r?.endurance_distance_km) || 0), 0);
+  const totalMoney = club.reduce((sum,r) => sum + (Number(r?.endurance_winnings) || 0), 0);
+  const totalPoints = club.reduce((sum,r) => sum + pointsValue(r), 0);
+
+  return `
+    <div class="club-summary-grid">
+      <div class="mini-stat"><span>Total Club Points</span><strong>${totalPoints.toLocaleString()}</strong></div>
+      <div class="mini-stat"><span>Total Money Earned</span><strong>$${totalMoney.toLocaleString()}</strong></div>
+      <div class="mini-stat"><span>Total Distance</span><strong>${totalDistance.toLocaleString()} km</strong></div>
+      <div class="mini-stat"><span>Completed Races</span><strong>${completed.length}</strong></div>
+    </div>
+  `;
+}
+
+function hasHerdingRecords(records) {
+  return (records || []).some(r => {
+    const key = normalizeKey(r?.activity_key);
+    const cls = normalizeKey(r?.class);
+    const label = normalizeKey(r?.score_label);
+    return key === "herding" || cls.startsWith("herding") || label.startsWith("herding");
+  });
+}
+
+function getClubPanels(records, animal, herdingRules) {
+  const panels = [];
+
+  const enduranceRecords = records.filter(r => normalizeKey(r?.association_key) === "endurance club");
+  if (enduranceRecords.length) {
+    const data = calculateEnduranceClubTitles(records, animal);
+    panels.push({
+      key:"endurance", label:"Endurance Club",
+      html:`<section class="panel">
+        <h3 class="panel-title">Endurance Club</h3>
+        ${enduranceClubSummary(records)}
+        <h4 class="subsection-title">Title Progress</h4>
+        ${renderClubProgressTable(data.rows)}
+        <h4 class="subsection-title">Club Records</h4>
+        ${renderRecordTable(enduranceRecords, "club-records-endurance")}
+      </section>`
     });
   }
 
-  addManualRows(animal?.manual_prefix_titles);
-  addManualRows(animal?.manual_suffix_titles);
+  const huntingRecords = records.filter(r => normalizeKey(r?.association_key) === "hunting club");
+  if (huntingRecords.length) {
+    const data = calculateHuntingClubTitles(records, animal);
+    panels.push({
+      key:"hunting", label:"Hunting Club",
+      html:`<section class="panel">
+        <h3 class="panel-title">Hunting Club</h3>
+        ${renderClubProgressTable(data.rows)}
+        <h4 class="subsection-title">Club Records</h4>
+        ${renderRecordTable(huntingRecords, "club-records-hunting")}
+      </section>`
+    });
+  }
 
-  // A title can be both derived from records and stored manually during migrations.
-  // Show it once rather than presenting duplicate rows.
-  const dedupedAwardRows = [];
-  const seenAwardRows = new Set();
-  awardTitleRows.forEach(row => {
-    const key = titleCodeKey(row?.titleCode) || normalizeKey(row?.titleName);
-    if (!key || seenAwardRows.has(key)) return;
-    seenAwardRows.add(key);
-    dedupedAwardRows.push(row);
-  });
+  const ihassRecords = records.filter(r => normalizeKey(r?.association_key) === "ihass");
+  if (ihassRecords.length) {
+    const data = calculateIcelandicAssociationTitles(records, animal);
+    panels.push({
+      key:"ihass", label:"IHASS",
+      html:`<section class="panel">
+        <h3 class="panel-title">IHASS</h3>
+        ${renderClubProgressTable(data.rows)}
+        <h4 class="subsection-title">Association Records</h4>
+        ${renderRecordTable(ihassRecords, "club-records-ihass")}
+      </section>`
+    });
+  }
 
-  return `
-    <h2 class="record-section-title">Titles</h2>
+  if (hasHerdingRecords(records)) {
+    const data = calculateHerdingTitles(records, animal, herdingRules);
+    const herdingRecords = records.filter(r => {
+      const key = normalizeKey(r?.activity_key);
+      const cls = normalizeKey(r?.class);
+      const label = normalizeKey(r?.score_label);
+      return key === "herding" || cls.startsWith("herding") || label.startsWith("herding");
+    });
 
-    <div class="registered-name">${registeredName}</div>
+    panels.push({
+      key:"herding", label:"Herding Club",
+      html:`<section class="panel">
+        <h3 class="panel-title">Herding Club</h3>
+        ${renderClubProgressTable(data.rows)}
+        <h4 class="subsection-title">Herding Records</h4>
+        ${renderRecordTable(herdingRecords, "club-records-herding")}
+      </section>`
+    });
+  }
 
-    <h3 class="record-section-title">Point-Based Titles</h3>
-
-    <table class="titles-table">
-      <thead>
-        <tr>
-          <th>Activity</th>
-          <th>Title</th>
-          <th>Total Points</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${pointTitleRows
-          .sort((a, b) => a.sort - b.sort || a.activity.localeCompare(b.activity))
-          .map(row => `
-            <tr>
-              <td>${row.activity}</td>
-              <td>${row.title}</td>
-              <td>${row.points}</td>
-            </tr>
-          `).join("")}
-      </tbody>
-    </table>
-
-    <h3 class="record-section-title">Award & Manual Titles</h3>
-
-    <table class="titles-table">
-      <thead>
-        <tr>
-          <th>Title Name</th>
-          <th>Title Code</th>
-          <th>Score / Count</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${
-          dedupedAwardRows.length
-            ? dedupedAwardRows
-              .sort((a, b) => a.sort - b.sort || a.titleCode.localeCompare(b.titleCode))
-              .map(row => `
-                <tr>
-                  <td>${row.titleName}</td>
-                  <td>${row.titleCode}</td>
-                  <td>${row.count}</td>
-                </tr>
-              `).join("")
-            : `
-              <tr>
-                <td colspan="3">No award or manual titles yet.</td>
-              </tr>
-            `
-        }
-      </tbody>
-    </table>
-  `;
+  return panels;
 }
-function collapsibleSection(title, records, startOpen = false) {
-  return `
-    <details class="record-details" ${startOpen ? "open" : ""}>
-      <summary>${title} (${records.length})</summary>
-      <div class="record-details-content">
-        ${renderRecordSection(records)}
-      </div>
-    </details>
-  `;
+
+function animalInfoLine(animal) {
+  const bits = [
+    animal?.animal_number ? `ID #${animal.animal_number}` : null,
+    animal?.breed,
+    animal?.colour,
+    animal?.gender,
+    animal?.birthyear ? `Born: ${animal.birthyear}` : null,
+    animal?.owner ? `Owner: ${animal.owner}` : null,
+    animal?.breeder ? `Breeder: ${animal.breeder}` : null
+  ].filter(Boolean);
+
+  return bits.map(escapeHtml).join(`<span class="meta-sep">|</span>`);
 }
 
 function collapseTeamActivityRecords(records) {
@@ -3205,24 +3397,13 @@ function collapseTeamActivityRecords(records) {
   const collapsed = [];
 
   (records || []).forEach(r => {
-    if (
-      canonicalShowType(r.show_type) !== "activity" ||
-      !teamClassPattern.test(String(r.class || ""))
-    ) {
+    if (canonicalShowType(r.show_type) !== "activity" || !teamClassPattern.test(String(r.class || ""))) {
       collapsed.push(r);
       return;
     }
 
-    const key = [
-      r.show_name || "",
-      r.class || "",
-      r.placement || "",
-      pointsValue(r),
-      r.event_date || ""
-    ].join("||");
-
+    const key = [r.show_name || "", r.class || "", r.placement || "", pointsValue(r), r.event_date || ""].join("||");
     if (seen[key]) return;
-
     seen[key] = true;
     collapsed.push(r);
   });
@@ -3231,38 +3412,97 @@ function collapseTeamActivityRecords(records) {
 }
 
 function renderRecords(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules) {
-  const titleSection = renderTitles(
-    records,
-    animal,
-    titleRules,
-    activityRules,
-    activityTypes,
-    totalRules,
-    herdingRules
-  );
-
-  if (!records.length) {
-    return `
-      ${titleSection}
-      <div class="empty">No personal show records found for this animal.</div>
-    `;
-  }
-
+  const titleData = calculateTitleData(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules);
+  const registeredName = buildRegisteredName(animal, titleData);
+  const pointRows = getPointBasedTitleRows(records, titleRules, activityRules, activityTypes);
+  const clubs = getClubPanels(records, animal, herdingRules);
   const conformation = records.filter(r => canonicalShowType(r.show_type) === "conformation");
-  const manualScores = records.filter(r => canonicalShowType(r.show_type) === "activity" && isManualScoreRecord(r));
-  const activities = collapseTeamActivityRecords(records.filter(r => canonicalShowType(r.show_type) === "activity" && !isManualScoreRecord(r)));
-  const unclassified = records.filter(r => {
-    const type = canonicalShowType(r.show_type);
-    return type !== "conformation" && type !== "activity";
-  });
+  const activities = collapseTeamActivityRecords(records.filter(r => canonicalShowType(r.show_type) === "activity"));
+
+  const nav = [
+    {key:"overview", label:"Overview"},
+    {key:"conformation", label:"Conformation Records"},
+    {key:"activities", label:"Activity Records"},
+    {key:"versatility", label:"Versatility"},
+    ...clubs.map(c => ({key:`club-${c.key}`, label:c.label}))
+  ];
 
   return `
-    ${titleSection}
-    ${collapsibleSection("Conformation", conformation, false)}
-    ${collapsibleSection("Activities", activities, false)}
-    ${collapsibleSection("Temperament / Therapy / CGC / Instinct Records", manualScores, false)}
-    ${unclassified.length ? collapsibleSection("Other / Unclassified Records", unclassified, false) : ""}
+    <header class="animal-header">
+      <div class="full-name">${escapeHtml(registeredName)}</div>
+      <div class="animal-meta">${animalInfoLine(animal)}</div>
+    </header>
+
+    <section class="title-strip panel">
+      <h3 class="panel-title">Titles</h3>
+      <div class="registered-name">${escapeHtml(registeredName)}</div>
+    </section>
+
+    <nav class="main-tabs" aria-label="Show record sections">
+      ${nav.map((item,index) => `
+        <button type="button" class="main-tab ${index === 0 ? "active" : ""}" data-tab="${escapeHtml(item.key)}">${escapeHtml(item.label)}</button>
+      `).join("")}
+    </nav>
+
+    <div class="tab-panels">
+      <section class="tab-panel active" data-panel="overview">
+        <div class="overview-grid">
+          ${renderPointBasedTitles(pointRows)}
+          ${buildHighlights(records)}
+        </div>
+      </section>
+
+      <section class="tab-panel" data-panel="conformation">
+        <section class="panel">
+          <h3 class="panel-title">Conformation Records</h3>
+          ${renderRecordTable(conformation, "conformation-records-table")}
+        </section>
+      </section>
+
+      <section class="tab-panel" data-panel="activities">
+        <section class="panel">
+          <h3 class="panel-title">Activity Records</h3>
+          ${renderRecordTable(activities, "activity-records-table")}
+        </section>
+      </section>
+
+      <section class="tab-panel" data-panel="versatility">
+        ${renderVersatilityPanel(animal, titleData)}
+      </section>
+
+      ${clubs.map(club => `
+        <section class="tab-panel" data-panel="club-${escapeHtml(club.key)}">${club.html}</section>
+      `).join("")}
+    </div>
   `;
+}
+
+function wireShowRecordTabs() {
+  document.querySelectorAll(".main-tabs").forEach(nav => {
+    nav.addEventListener("click", event => {
+      const button = event.target.closest(".main-tab");
+      if (!button) return;
+      const root = nav.parentElement;
+      nav.querySelectorAll(".main-tab").forEach(btn => btn.classList.toggle("active", btn === button));
+      root.querySelectorAll(".tab-panel").forEach(panel => {
+        panel.classList.toggle("active", panel.dataset.panel === button.dataset.tab);
+      });
+    });
+  });
+
+  document.querySelectorAll(".year-tabs").forEach(group => {
+    group.addEventListener("click", event => {
+      const button = event.target.closest(".year-tab");
+      if (!button) return;
+      group.querySelectorAll(".year-tab").forEach(btn => btn.classList.toggle("active", btn === button));
+      const table = document.getElementById(group.dataset.target);
+      if (!table) return;
+      const selected = button.dataset.year;
+      table.querySelectorAll("tbody tr").forEach(row => {
+        row.hidden = selected !== "all" && row.dataset.year !== selected;
+      });
+    });
+  });
 }
 
 async function loadUploadMetadataForRecords(supabase, records) {
@@ -3511,6 +3751,8 @@ async function loadRecords() {
       totalRules,
       herdingRules
     );
+
+    wireShowRecordTabs();
 
   } catch (err) {
     console.error(err);
