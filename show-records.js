@@ -3266,16 +3266,27 @@ function isTestingCertificateRecord(record) {
 function testingCertificateLabel(record) {
   const key = normalizeKey(record?.activity_key);
   const text = normalizeKey(`${record?.class || ""} ${record?.score_label || ""} ${record?.show_name || ""}`);
+  const combined = `${key} ${text}`.trim();
 
-  if (key === "temperament test" || key === "temperament_test" || text.includes("temperament test")) {
+  // Match all historical/current Temperament wording.
+  if (combined.includes("temperament")) {
     return "Temperament Testing";
   }
-  if (key === "therapy animal" || key === "therapy_animal" || text.includes("therapy animal")) {
+
+  // Match Therapy Animal, Therapy Test, Therapy Dog/Cat/Horse,
+  // and older records that only stored "Therapy".
+  if (combined.includes("therapy")) {
     return "Therapy Animal";
   }
-  if (["cgc","cgcb","cgcs","cgcg","cgca","cgcu"].includes(key) || text.includes("canine good citizen") || /\bcgc\b/.test(text)) {
+
+  if (
+    ["cgc","cgcb","cgcs","cgcg","cgca","cgcu"].includes(key) ||
+    combined.includes("canine good citizen") ||
+    /\bcgc\b/.test(combined)
+  ) {
     return "Canine Good Citizen";
   }
+
   return "Testing & Certificates";
 }
 
