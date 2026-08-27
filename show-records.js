@@ -792,11 +792,14 @@ const VERSATILITY_CODES = {
       ["FFCh","RCCh","SDCh"]
     ],
     [
-      ["SC1","VN","TB-B","TBB","HJN"],
-      ["SC2","VJ","TB-I","TBI","HJI"],
-      ["SC3","VS","TB-E","TBE","HJA"],
-      ["SC4","VM","TB-Ch","TBCh","HJE"],
-      ["SCCh","VE","HJCh"]
+      // Feline Treibball:
+      // Current database titles use FTB-*.
+      // Keep TB-* aliases for historical records, and include Grand Champion at Level E.
+      ["SC1","VN","FTB-B","FTBB","TB-B","TBB","HJN"],
+      ["SC2","VJ","FTB-I","FTBI","TB-I","TBI","HJI"],
+      ["SC3","VS","FTB-E","FTBE","TB-E","TBE","HJA"],
+      ["SC4","VM","FTB-Ch","FTBCh","TB-Ch","TBCh","HJE"],
+      ["SCCh","VE","FTB-GCh","FTBGCh","TB-GCh","TBGCh","HJCh"]
     ]
   ]),
 
