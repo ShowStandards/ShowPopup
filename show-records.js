@@ -753,11 +753,14 @@ const VERSATILITY_CODES = {
       ["NFC","SRCh","AgGCH","FDGCh","SCAT","TRGCh"]
     ],
     [
-      ["UWP","UWPCh","CTB-B","CTBT-B","DD","DDX","DN","ARJ","HyDN"],
-      ["UWPChX","UGWPCh","CTB-I","CTBT-I","DDCh","DJ","ARS","HyDJ"],
-      ["UGWPC1","UWPV","CTB-E","CTBT-E","DDACh","DS","ARM","HyDS"],
-      ["UWPO","CTB-Ch","CTBT-Ch","DDMCh","DM","ARA","HyDM"],
-      ["UWPS","CTB-GCh","CTBT-GCh","DDECh","DE","ARX","HyDE"]
+      // Canine Treibball:
+      // Accept both hyphenated and legacy/unhyphenated title codes so
+      // individual (CTB) and team (CTBT) titles always count toward Versatility.
+      ["UWP","UWPCh","CTB-B","CTBB","CTBT-B","CTBTB","DD","DDX","DN","ARJ","HyDN"],
+      ["UWPChX","UGWPCh","CTB-I","CTBI","CTBT-I","CTBTI","DDCh","DJ","ARS","HyDJ"],
+      ["UGWPC1","UWPV","CTB-E","CTBE","CTBT-E","CTBTE","DDACh","DS","ARM","HyDS"],
+      ["UWPO","CTB-Ch","CTBCh","CTBT-Ch","CTBTCh","DDMCh","DM","ARA","HyDM"],
+      ["UWPS","CTB-GCh","CTBGCh","CTBT-GCh","CTBTGCh","DDECh","DE","ARX","HyDE"]
     ],
     [
       ["SWD","SWN","SAR-W","SD-I","SD-II","TD"],
