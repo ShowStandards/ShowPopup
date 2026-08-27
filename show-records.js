@@ -753,14 +753,12 @@ const VERSATILITY_CODES = {
       ["NFC","SRCh","AgGCH","FDGCh","SCAT","TRGCh"]
     ],
     [
-      // Canine Treibball:
-      // Accept both hyphenated and legacy/unhyphenated title codes so
-      // individual (CTB) and team (CTBT) titles always count toward Versatility.
-      ["UWP","UWPCh","CTB-B","CTBB","CTBT-B","CTBTB","DD","DDX","DN","ARJ","HyDN"],
-      ["UWPChX","UGWPCh","CTB-I","CTBI","CTBT-I","CTBTI","DDCh","DJ","ARS","HyDJ"],
-      ["UGWPC1","UWPV","CTB-E","CTBE","CTBT-E","CTBTE","DDACh","DS","ARM","HyDS"],
-      ["UWPO","CTB-Ch","CTBCh","CTBT-Ch","CTBTCh","DDMCh","DM","ARA","HyDM"],
-      ["UWPS","CTB-GCh","CTBGCh","CTBT-GCh","CTBTGCh","DDECh","DE","ARX","HyDE"]
+      // Canine Treibball — individual + team, current + legacy code forms.
+      ["UWP","UWPCh","CTB-B","CTBB","CTBT-B","CTBTB","TB-B","TBB","DD","DDX","DN","ARJ","HyDN"],
+      ["UWPChX","UGWPCh","CTB-I","CTBI","CTBT-I","CTBTI","TB-I","TBI","DDCh","DJ","ARS","HyDJ"],
+      ["UGWPC1","UWPV","CTB-E","CTBE","CTBT-E","CTBTE","TB-E","TBE","DDACh","DS","ARM","HyDS"],
+      ["UWPO","CTB-Ch","CTBCh","CTBT-Ch","CTBTCh","TB-Ch","TBCh","DDMCh","DM","ARA","HyDM"],
+      ["UWPS","CTB-GCh","CTBGCh","CTBT-GCh","CTBTGCh","TB-GCh","TBGCh","DDECh","DE","ARX","HyDE"]
     ],
     [
       ["SWD","SWN","SAR-W","SD-I","SD-II","TD"],
@@ -3459,10 +3457,26 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
     This exact source list is also returned to the Versatility panel so the
     registered name and the panel can never disagree with one another.
   */
-  const versatilitySourceCodes = [
+  /*
+    VERSATILITY SOURCE OF TRUTH
+
+    earnedTitleCodes is populated directly while conformation, activities,
+    testing and association titles are calculated. Use it here as well as the
+    final display stacks.
+
+    Previously Versatility only looked at prefixTitlesBase/suffixTitlesBase.
+    That meant an activity could successfully earn/display a title but still be
+    omitted from Versatility if its final display form/position differed from
+    the canonical title code.
+
+    Keeping both the raw earned code and displayed code also protects
+    Treibball progressions such as CTB-Ch / CTBT-Ch / TB-Ch.
+  */
+  const versatilitySourceCodes = uniqueTitleList([
+    ...earnedTitleCodes,
     ...prefixTitlesBase,
     ...suffixTitlesBase
-  ];
+  ]).filter(code => !isVersatilityTitleCode(code, animal?.species));
 
   const versatilityTitle = calculateVersatilityTitle(animal, versatilitySourceCodes);
 
