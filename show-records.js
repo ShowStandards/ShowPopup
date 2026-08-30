@@ -1,4 +1,4 @@
-// Show Records — Versatility single-source + Testing dedupe fix — 2026-08-26
+// Show Records — Herding Fun Class / Club Stakes separation fix — 2026-08-30
 const supabaseUrl = "https://vyuklkrqusfvrcaqxmfm.supabase.co";
 const supabaseKey = "sb_publishable_2LSbJafkRatck5Ei8HXL-g_0tezT6qu";
 
@@ -1677,6 +1677,54 @@ function isHerdingInstinctRecord(record) {
   );
 }
 
+function isHerdingStakesRecord(record) {
+  if (canonicalShowType(record?.show_type) !== "activity") return false;
+  if (isHerdingInstinctRecord(record)) return false;
+
+  const division = herdingDivisionFromRecord(record);
+  const stock = herdingStockFromRecord(record);
+  if (!division || !stock) return false;
+
+  const activityKey = normalizeKey(record?.activity_key);
+  const associationKey = normalizeKey(record?.association_key);
+  const showText = normalizeKey(record?.show_name);
+  const classText = normalizeKey(record?.class);
+  const labelText = normalizeKey(record?.score_label);
+  const eventText = normalizeKey(record?.association_event_type);
+  const combined = `${showText} ${classText} ${labelText} ${eventText}`.trim();
+
+  /*
+    Herding Club FUN classes are ordinary placement-only Herding activity
+    records. They can have classes such as "Puppy Ducks" / "Puppy Sheep",
+    but they have no Stakes score and MUST NOT count toward PS/HS/HA/HX/HCh
+    specialization titles.
+
+    A record is a true Stakes record only when it is explicitly identified as
+    Stakes, or when it carries actual Stakes result data (numeric score or a
+    Qualified / Not Qualified result) in a Herding Club / Herding activity
+    context. This keeps the 2026-08-03 Fun Tests out of club title progress
+    while preserving older scored Stakes uploads that lacked the word Stakes.
+  */
+  if (combined.includes("stakes")) return true;
+
+  const score = Number(record?.score);
+  const hasNumericScore =
+    record?.score !== null &&
+    record?.score !== undefined &&
+    record?.score !== "" &&
+    Number.isFinite(score);
+
+  const hasQualificationText =
+    /\b(not qualified|non qualifying|qualified|qualifying|nq)\b/.test(combined);
+
+  const hasHerdingContext =
+    activityKey === "herding" ||
+    associationKey === "herding club" ||
+    showText.includes("herding club");
+
+  return hasHerdingContext && (hasNumericScore || hasQualificationText);
+}
+
 function herdingStockInfoFromRecord(record) {
   /*
     Current Herding uploads may store:
@@ -1809,6 +1857,10 @@ function recordMatchesHerdingRule(record, rawRule) {
 
   if (rule.rule_type !== "stakes") return false;
   if (isHerdingInstinctRecord(record)) return false;
+
+  // Placement-only Herding Fun classes are normal Herding activity records,
+  // not Herding Club Stakes and never count toward specialization titles.
+  if (!isHerdingStakesRecord(record)) return false;
 
   if (normalizeKey(division) !== normalizeKey(rule.division)) return false;
   if (normalizeKey(stock) !== normalizeKey(rule.stock)) return false;
@@ -4171,31 +4223,16 @@ function renderEnduranceAwards(records) {
 }
 
 function isHerdingClubRecord(record) {
-  if (isHerdingInstinctRecord(record)) return true;
+  /*
+    The Herding Club tab is intentionally limited to title-bearing club work:
+      - Instinct Tests
+      - scored/qualified Stakes
 
-  const associationKey = normalizeKey(record?.association_key);
-  const showName = normalizeKey(record?.show_name);
-  const classText = normalizeKey(record?.class);
-  const labelText = normalizeKey(record?.score_label);
-  const combined = `${showName} ${classText} ${labelText}`.trim();
-
-  // Explicitly stored club records.
-  if (associationKey === "herding club") {
-    return (
-      combined.includes("stakes") ||
-      combined.includes("instinct")
-    );
-  }
-
-  // Historical/legacy club uploads may not have association_key,
-  // but the show/class text clearly identifies Herding Club Stakes.
-  const isClubShow = showName.includes("herding club");
-  const isStakes =
-    combined.includes("stakes") ||
-    /\b(beginners?|advanced|expert|championship|puppy)\b/.test(classText) &&
-    /\b(sheep|cattle|duck|ducks|reindeer)\b/.test(classText);
-
-  return isClubShow && isStakes;
+    Herding Club Fun Tests are ordinary Herding activity classes. They stay in
+    the normal Activities/Herding history, keep their normal placement points,
+    have no score, and do not appear here or count toward club titles.
+  */
+  return isHerdingInstinctRecord(record) || isHerdingStakesRecord(record);
 }
 
 function hasHerdingRecords(records) {
