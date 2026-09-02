@@ -3416,6 +3416,13 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
   awardTitleRows.push(...huntingTitles.rows);
   huntingTitles.suffixes.forEach(code => earnedTitleCodes.push(code));
 
+  const spanielTitles = calculateSpanielClubTitles(records, animal);
+  prefixManualTitles.push(...spanielTitles.prefixes);
+  suffixManualTitles.push(...spanielTitles.suffixes);
+  awardTitleRows.push(...spanielTitles.rows);
+  spanielTitles.prefixes.forEach(code => earnedTitleCodes.push(code));
+  spanielTitles.suffixes.forEach(code => earnedTitleCodes.push(code));
+
   const testingTitles = calculateTestingTitles(records, animal);
   testingTitles.suffixes.forEach(code => {
     if (/^CGC/.test(code)) suffixCgcTitles.push(code);
@@ -4239,8 +4246,334 @@ function hasHerdingRecords(records) {
   return (records || []).some(isHerdingClubRecord);
 }
 
+
+
+/* =========================================================
+   SPANIEL CLUB
+   Conditional club tab + DpS / VtS qualification tracking.
+
+   Recognition is deliberately tolerant so the popup can read both the
+   current association fields and older/text-only uploads.
+   ========================================================= */
+
+function spanielClubText(record) {
+  return normalizeKey([
+    record?.show_name,
+    record?.class,
+    record?.placement,
+    record?.score_label,
+    record?.activity_key,
+    record?.association_key,
+    record?.association_event_type,
+    record?.spaniel_division,
+    record?.association_division
+  ].filter(Boolean).join(" "));
+}
+
+function isSpanielClubRecord(record) {
+  const association = normalizeKey(record?.association_key);
+  const text = spanielClubText(record);
+  return association === "spaniel club" || association === "spaniel_club" || text.includes("spaniel club");
+}
+
+function spanielDivision(records, animal) {
+  const explicit = (records || []).map(r =>
+    normalizeKey(r?.spaniel_division || r?.association_division || r?.division)
+  ).find(Boolean);
+
+  if (explicit) {
+    if (explicit.includes("companion")) return "companion";
+    if (explicit.includes("hunting")) return "hunting";
+  }
+
+  const animalText = normalizeKey([
+    animal?.spaniel_division,
+    animal?.breed_group,
+    animal?.group
+  ].filter(Boolean).join(" "));
+  if (animalText.includes("companion")) return "companion";
+  if (animalText.includes("hunting")) return "hunting";
+
+  // Last-resort inference is only used when the upload contains one side of the
+  // club split but no explicit division metadata.
+  const activityKeys = (records || []).map(spanielActivityFamily).filter(Boolean);
+  const hasHuntingSide = activityKeys.some(k => k === "hunting" || k === "retrieving" || k === "falconry");
+  const hasCompanionSide = activityKeys.some(k => k === "tracking" || k === "scent work");
+  if (hasHuntingSide && !hasCompanionSide) return "hunting";
+  if (hasCompanionSide && !hasHuntingSide) return "companion";
+  return "unknown";
+}
+
+function spanielActivityFamily(record) {
+  const key = normalizeKey(record?.activity_key);
+  const text = normalizeKey([record?.class, record?.score_label, record?.association_event_type].filter(Boolean).join(" "));
+  const combined = `${key} ${text}`;
+
+  if (/\bretriev/.test(combined)) return "retrieving";
+  if (/\bhunting\b/.test(combined)) return "hunting";
+  if (/\bfalconry\b/.test(combined)) return "falconry";
+  if (/\bshed\s*dog\b/.test(combined) || /\bsheddog\b/.test(combined)) return "shed dog";
+  if (/\btracking\b/.test(combined)) return "tracking";
+  if (/\bscent\s*work\b/.test(combined) || /\bscentwork\b/.test(combined)) return "scent work";
+
+  // Other offered activities remain eligible for the VtS secondary-activity requirement.
+  if (key && key !== "activity" && key !== "activities") return key;
+  return null;
+}
+
+function spanielEntryCount(record) {
+  const direct = Number(
+    record?.entry_count ?? record?.entries ?? record?.class_entries ?? record?.field_size ?? record?.entry_total
+  );
+  if (Number.isFinite(direct) && direct > 0) return direct;
+
+  const text = [record?.class, record?.score_label, record?.placement].filter(Boolean).join(" ");
+  const match = text.match(/\b(\d+)\s*(?:entries|entry|dogs)\b/i) || text.match(/\((\d+)\)/);
+  return match ? Number(match[1]) : 0;
+}
+
+function spanielPlacementNumber(record) {
+  const p = normalizeKey(record?.placement);
+  if (/^(1|1st|first)(\b|\s)/.test(p) || p === "1") return 1;
+  if (/^(2|2nd|second)(\b|\s)/.test(p) || p === "2") return 2;
+  if (/^(3|3rd|third)(\b|\s)/.test(p) || p === "3") return 3;
+  return null;
+}
+
+function isSpanielQualifyingPlacement(record) {
+  const place = spanielPlacementNumber(record);
+  return place !== null && place <= 3 && spanielEntryCount(record) >= 6;
+}
+
+function isSpanielBOB(record) {
+  if (!isSpanielClubRecord(record)) return false;
+  const p = normalizeKey(record?.placement);
+  return p === "bob" || p.includes("best of breed");
+}
+
+function isSpanielBIS(record) {
+  if (!isSpanielClubRecord(record)) return false;
+  if (canonicalShowType(record?.show_type) !== "conformation") return false;
+
+  const p = normalizeSpecialtyText(record?.placement);
+
+  // Complete Spaniel requires an actual BIS at a Spaniel Club show.
+  // BISS, RBIS and RBISS do NOT satisfy this requirement.
+  if (p.includes("reserve") || p === "rbis" || p === "rbiss") return false;
+  if (p === "biss" || p.includes("specialty")) return false;
+
+  return p === "bis" || p === "best in show";
+}
+
+function isSpanielChallengeRecord(record) {
+  if (!isSpanielClubRecord(record)) return false;
+  const text = spanielClubText(record);
+  return text.includes("challenge class") || text.includes("challenge");
+}
+
+function isSpanielChallengeQualification(record) {
+  if (!isSpanielChallengeRecord(record)) return false;
+  const passed = recordPassed(record);
+  if (passed !== null) return passed;
+  const text = spanielClubText(record);
+  return /\b(q|qualified|qualifying|pass|passed)\b/.test(text) &&
+         !/\b(nq|not qualified|non qualifying|fail|failed)\b/.test(text);
+}
+
+function uniqueSpanielResultKey(record, family) {
+  const upload = String(record?.upload_id || "").trim();
+  const cls = normalizeKey(record?.class || record?.score_label);
+  if (upload) return `${family}|${upload}|${cls}|${normalizeKey(record?.placement)}`;
+  return `${family}|${record?.event_date || ""}|${normalizeKey(record?.show_name)}|${cls}|${normalizeKey(record?.placement)}`;
+}
+
+function uniqueSpanielCount(records, predicate, family) {
+  const keys = new Set();
+  (records || []).forEach(r => {
+    if (predicate(r)) keys.add(uniqueSpanielResultKey(r, family));
+  });
+  return keys.size;
+}
+
+function calculateSpanielClubTitles(records, animal) {
+  const clubRecords = (records || []).filter(isSpanielClubRecord);
+  if (!clubRecords.length) return { prefixes: [], suffixes: [], rows: [], division: "unknown", progress: null };
+
+  const division = spanielDivision(clubRecords, animal);
+  const bobCount = uniqueSpanielCount(clubRecords, isSpanielBOB, "bob");
+  const bisCount = uniqueSpanielCount(clubRecords, isSpanielBIS, "bis");
+  const challengeQs = uniqueSpanielCount(clubRecords, isSpanielChallengeQualification, "challenge");
+
+  const primaryFamilies = division === "companion"
+    ? ["tracking", "scent work", "shed dog"]
+    : ["hunting", "retrieving", "falconry", "shed dog"];
+
+  const qualifyingActivityRecords = clubRecords.filter(r =>
+    canonicalShowType(r?.show_type) === "activity" &&
+    !isSpanielChallengeRecord(r) &&
+    isSpanielQualifyingPlacement(r)
+  );
+
+  const primaryQualifiers = qualifyingActivityRecords.filter(r => primaryFamilies.includes(spanielActivityFamily(r)));
+  const primaryCount = primaryQualifiers.length;
+
+  const secondaryQualifiers = qualifyingActivityRecords.filter(r => {
+    const family = spanielActivityFamily(r);
+    return family && !primaryFamilies.includes(family);
+  });
+
+  const secondaryFamilies = [...new Set(secondaryQualifiers.map(spanielActivityFamily).filter(Boolean))];
+
+  const dpsEarned = division !== "unknown" && bobCount >= 1 && primaryCount >= 1 && challengeQs >= 2;
+  const vtsEarned = division !== "unknown" && bobCount >= 3 && primaryCount >= 3 && secondaryFamilies.length >= 1 && challengeQs >= 3;
+  const cspEarned = dpsEarned && vtsEarned && bisCount >= 1;
+
+  const prefixes = [];
+  const suffixes = [];
+  const rows = [];
+
+  if (cspEarned) {
+    prefixes.push("CSp");
+    rows.push({
+      titleName: "Complete Spaniel",
+      titleCode: "CSp",
+      count: `DpS earned | VtS earned | ${bisCount} Spaniel Club BIS`,
+      sort: 874
+    });
+  }
+
+  // VtS replaces DpS in the displayed club-title progression.
+  if (vtsEarned) {
+    suffixes.push("VtS");
+    rows.push({
+      titleName: "Versatile Spaniel",
+      titleCode: "VtS",
+      count: `${bobCount} BOB | ${primaryCount} primary placements | ${secondaryFamilies.length} other activity | ${challengeQs} Challenge Qs`,
+      sort: 875
+    });
+  } else if (dpsEarned) {
+    suffixes.push("DpS");
+    rows.push({
+      titleName: "Dual Purpose Spaniel",
+      titleCode: "DpS",
+      count: `${bobCount} BOB | ${primaryCount} primary placements | ${challengeQs} Challenge Qs`,
+      sort: 876
+    });
+  }
+
+  return {
+    prefixes,
+    suffixes,
+    rows,
+    division,
+    progress: {
+      bobCount,
+      bisCount,
+      challengeQs,
+      primaryCount,
+      secondaryFamilies,
+      dpsEarned,
+      vtsEarned,
+      cspEarned,
+      primaryFamilies
+    }
+  };
+}
+
+function spanielCheck(done, text) {
+  return `<div class="club-progress-item ${done ? "complete" : ""}"><strong>${done ? "✓" : "○"}</strong> ${escapeHtml(text)}</div>`;
+}
+
+function renderSpanielClubProgress(records, animal) {
+  const data = calculateSpanielClubTitles(records, animal);
+  const p = data.progress;
+  if (!p) return `<div class="empty">No Spaniel Club title progress yet.</div>`;
+
+  if (data.division === "unknown") {
+    return `<div class="empty">Spaniel division could not be determined. Save <strong>Hunting Spaniel</strong> or <strong>Companion Spaniel</strong> on the club upload/record so DpS and VtS can be calculated safely.</div>`;
+  }
+
+  const primaryLabel = data.division === "companion"
+    ? "Tracking / Scent Work / Shed Dog"
+    : "Hunting / Retrieving / Falconry / Shed Dog";
+
+  return `
+    <div class="club-progress-grid">
+      <div class="club-progress-card">
+        <h4>Dual Purpose Spaniel (DpS)</h4>
+        ${spanielCheck(p.bobCount >= 1, `Best of Breed: ${p.bobCount}/1`)}
+        ${spanielCheck(p.primaryCount >= 1, `${primaryLabel} placements (1st-3rd, 6+ dogs): ${p.primaryCount}/1`)}
+        ${spanielCheck(p.challengeQs >= 2, `Challenge Class qualifications: ${p.challengeQs}/2`)}
+      </div>
+      <div class="club-progress-card">
+        <h4>Versatile Spaniel (VtS)</h4>
+        ${spanielCheck(p.bobCount >= 3, `Best of Breed: ${p.bobCount}/3`)}
+        ${spanielCheck(p.primaryCount >= 3, `${primaryLabel} placements (1st-3rd, 6+ dogs): ${p.primaryCount}/3`)}
+        ${spanielCheck(p.secondaryFamilies.length >= 1, `Other offered activity placement: ${p.secondaryFamilies.length}/1`)}
+        ${spanielCheck(p.challengeQs >= 3, `Challenge Class qualifications: ${p.challengeQs}/3`)}
+      </div>
+      <div class="club-progress-card">
+        <h4>Complete Spaniel (CSp)</h4>
+        ${spanielCheck(p.dpsEarned, `Dual Purpose Spaniel (DpS): ${p.dpsEarned ? "Earned" : "Not yet earned"}`)}
+        ${spanielCheck(p.vtsEarned, `Versatile Spaniel (VtS): ${p.vtsEarned ? "Earned" : "Not yet earned"}`)}
+        ${spanielCheck(p.bisCount >= 1, `Spaniel Club Best in Show: ${p.bisCount}/1`)}
+      </div>
+    </div>
+  `;
+}
+
+function renderSpanielChallengeTable(records) {
+  const challengeRecords = (records || []).filter(isSpanielChallengeRecord);
+  if (!challengeRecords.length) return `<div class="empty">No Challenge Class records yet.</div>`;
+
+  return `
+    <div class="table-wrap">
+      <table class="records-table" id="club-records-spaniel-challenges">
+        <thead><tr><th>Date</th><th>Show</th><th>Challenge</th><th>Result</th><th>Score</th></tr></thead>
+        <tbody>
+          ${challengeRecords.map(r => `
+            <tr>
+              <td>${escapeHtml(r.event_date || "")}</td>
+              <td>${escapeHtml(r.show_name || "")}</td>
+              <td>${escapeHtml(r.class || r.score_label || "Challenge Class")}</td>
+              <td>${escapeHtml(isSpanielChallengeQualification(r) ? "Qualified" : (recordPassed(r) === false ? "Not Qualified" : (r.placement || "Recorded")))}</td>
+              <td>${escapeHtml(formatScore(r))}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 function getClubPanels(records, animal, herdingRules) {
   const panels = [];
+
+  const spanielRecords = records.filter(isSpanielClubRecord);
+  if (spanielRecords.length) {
+    const data = calculateSpanielClubTitles(records, animal);
+    const ordinarySpanielRecords = spanielRecords.filter(r => !isSpanielChallengeRecord(r));
+    panels.push({
+      key:"spaniel", label:"Spaniel Club",
+      html:`<section class="panel">
+        <h3 class="panel-title">Spaniel Club</h3>
+        <div class="summary-grid">
+          <div class="summary-card"><strong>${escapeHtml(data.division === "unknown" ? "—" : (data.division === "companion" ? "Companion" : "Hunting"))}</strong>Division</div>
+          <div class="summary-card"><strong>${data.progress?.bobCount || 0}</strong>Best of Breed Wins</div>
+          <div class="summary-card"><strong>${data.progress?.bisCount || 0}</strong>Best in Show Wins</div>
+          <div class="summary-card"><strong>${data.progress?.challengeQs || 0}</strong>Challenge Qualifications</div>
+        </div>
+        <h4 class="subsection-title">Title Progress</h4>
+        ${renderSpanielClubProgress(records, animal)}
+        ${ordinarySpanielRecords.length ? `
+          <h4 class="subsection-title">Club Records</h4>
+          ${renderRecordTable(ordinarySpanielRecords, "club-records-spaniel")}
+        ` : ""}
+        <h4 class="subsection-title">Challenge Classes</h4>
+        ${renderSpanielChallengeTable(spanielRecords)}
+      </section>`
+    });
+  }
 
   const enduranceRecords = records.filter(isEnduranceClubRecord);
   if (enduranceRecords.length) {
