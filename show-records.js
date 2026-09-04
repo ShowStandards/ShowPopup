@@ -2700,7 +2700,10 @@ function getEnduranceTitleProgressData(records, animal) {
       bestPlaced=Math.max(bestPlaced,placed.size); bestWon=Math.max(bestWon,won.size);
     });
 
-    const championRecord=club.find(r=>normalizeKey(r?.association_event_type)==="circuit champion" && normalizeKey(r?.endurance_circuit)===normalizeKey(circuit));
+    const championRecord=club.find(r=>
+      isClosedEnduranceCircuitChampion(r) &&
+      normalizeKey(r?.endurance_circuit)===normalizeKey(circuit)
+    );
 
     add({category:circuit,title:`${circuit} Completion`,code:codes.completion,requirement:`Complete all ${required.length} circuit races in one season`,current:`${Math.min(bestCompleted,required.length)}/${required.length} completed`,earned:seasons.some(season=>{
       const recs=club.filter(r=>String(enduranceSeason(r))===String(season)&&normalizeKey(r?.endurance_circuit)===normalizeKey(circuit));
@@ -3152,7 +3155,7 @@ function calculateEnduranceClubTitles(records, animal) {
     the endurance_circuit_champions view.
   */
   club
-    .filter(record => normalizeKey(record?.association_event_type) === "circuit champion")
+    .filter(record => isClosedEnduranceCircuitChampion(record))
     .forEach(record => {
       const circuit = record.endurance_circuit;
       const codeMap = circuitCodes[circuit];
@@ -4253,17 +4256,47 @@ function enduranceClubSummary(records) {
   `;
 }
 
+
+function isClosedEnduranceCircuitChampion(record) {
+  const eventType = normalizeKey(record?.association_event_type);
+  const placement = normalizeKey(record?.placement);
+  const classText = normalizeKey(record?.class);
+
+  const isChampion =
+    eventType === "circuit champion" ||
+    eventType === "circuit_champion" ||
+    placement.includes("circuit champion") ||
+    classText.includes("circuit champion");
+
+  if (!isChampion) return false;
+
+  const season = Number(enduranceSeason(record) || record?.endurance_season || 0);
+  const currentYear = new Date().getFullYear();
+
+  // Circuit Champion is a YEAR-END award.
+  // A season may only become champion once that calendar year has ended.
+  return Number.isFinite(season) && season > 0 && season < currentYear;
+}
+
 function isEnduranceClubAwardRecord(record) {
   const eventType = normalizeKey(record?.association_event_type);
   const placement = normalizeKey(record?.placement);
   const classText = normalizeKey(record?.class);
 
+  // Circuit Champion is strictly a closed-season/year-end award.
+  if (
+    eventType.includes("circuit champion") ||
+    eventType.includes("circuit_champion") ||
+    placement.includes("circuit champion") ||
+    classText.includes("circuit champion")
+  ) {
+    return isClosedEnduranceCircuitChampion(record);
+  }
+
   return (
     eventType.includes("champion") ||
     eventType.includes("award") ||
-    placement.includes("circuit champion") ||
     placement.includes("series champion") ||
-    classText.includes("circuit champion") ||
     classText.includes("series champion")
   );
 }
