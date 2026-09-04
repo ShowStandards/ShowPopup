@@ -5139,11 +5139,30 @@ async function loadRecords() {
         .eq("animal_id", animalId);
 
       if (!championError) {
+        const currentYear = new Date().getFullYear();
+
         (championRows || []).forEach(row => {
+          const season = Number(row.season);
+
+          /*
+            ENDURANCE CLUB — CIRCUIT CHAMPIONS ARE YEAR-END AWARDS
+
+            The endurance_circuit_champions view can identify the CURRENT
+            standings leader during an active season. That is useful for
+            standings, but it must not become an earned Circuit Champion title
+            until that season has actually closed.
+
+            Only prior seasons are allowed to create synthetic champion rows
+            on an animal's Show Records page. Example: during 2026, a 2026
+            standings leader is NOT yet the 2026 Circuit Champion. The title
+            becomes eligible beginning in 2027.
+          */
+          if (!Number.isFinite(season) || season >= currentYear) return;
+
           allRows.push({
-            id: `endurance-champion-${row.endurance_circuit}-${row.season}`,
+            id: `endurance-champion-${row.endurance_circuit}-${season}`,
             animal_id: animalId,
-            show_name: `${row.endurance_circuit} ${row.season} Season`,
+            show_name: `${row.endurance_circuit} ${season} Season`,
             show_type: "activity",
             show_scope: "association",
             association_key: "endurance_club",
@@ -5157,7 +5176,7 @@ async function loadRecords() {
             calculated_points: 0,
             endurance_circuit_points: Number(row.circuit_points || 0),
             endurance_circuit: row.endurance_circuit,
-            endurance_season: Number(row.season),
+            endurance_season: season,
             endurance_completed: false,
             endurance_winnings: 0
           });
