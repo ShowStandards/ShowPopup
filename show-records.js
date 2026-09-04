@@ -2577,8 +2577,9 @@ function getEnduranceTitleProgressData(records, animal) {
     return { rows: [], prefixes: [], suffixes: [] };
   }
 
-  const club = (records || []).filter(isEnduranceClubRecord);
-  if (!club.length) return { rows: [], prefixes: [], suffixes: [] };
+  const allClub = (records || []).filter(isEnduranceClubRecord);
+  const club = allClub.filter(record => !isEnduranceProspectRecord(record));
+  if (!allClub.length) return { rows: [], prefixes: [], suffixes: [] };
 
   const rows = [];
   const prefixes = [];
@@ -2834,9 +2835,10 @@ function calculateEnduranceClubTitles(records, animal) {
     return { prefixes: [], suffixes: [], rows: [] };
   }
 
-  const club = (records || []).filter(isEnduranceClubRecord);
+  const allClub = (records || []).filter(isEnduranceClubRecord);
+  const club = allClub.filter(record => !isEnduranceProspectRecord(record));
 
-  if (!club.length) {
+  if (!allClub.length) {
     return { prefixes: [], suffixes: [], rows: [] };
   }
 
@@ -4166,12 +4168,34 @@ function renderClubProgressTable(rows) {
   `;
 }
 
+function isEnduranceProspectRecord(record) {
+  const eventType = normalizeKey(record?.association_event_type);
+  const classText = normalizeKey(record?.class);
+  const raceName = normalizeKey(record?.endurance_race_name);
+  const raceKey = normalizeKey(record?.endurance_race_key);
+
+  return (
+    eventType === "prospect" ||
+    eventType.includes("prospect") ||
+    classText.includes("prospect") ||
+    raceName.includes("prospect") ||
+    raceKey.includes("prospect")
+  );
+}
+
+function isEnduranceRaceRecord(record) {
+  return isEnduranceClubRecord(record) &&
+         !isEnduranceProspectRecord(record) &&
+         !isEnduranceClubAwardRecord(record);
+}
+
 function enduranceClubSummary(records) {
   const club = (records || []).filter(isEnduranceClubRecord);
-  const completed = club.filter(r => r?.endurance_completed === true || recordPassed(r) === true);
+  const races = club.filter(isEnduranceRaceRecord);
+  const completed = races.filter(r => r?.endurance_completed === true || recordPassed(r) === true);
   const totalDistance = completed.reduce((sum,r) => sum + (Number(r?.endurance_distance_km) || 0), 0);
-  const totalMoney = club.reduce((sum,r) => sum + (Number(r?.endurance_winnings) || 0), 0);
-  const totalPoints = club.reduce((sum,r) => sum + pointsValue(r), 0);
+  const totalMoney = races.reduce((sum,r) => sum + (Number(r?.endurance_winnings) || 0), 0);
+  const totalPoints = races.reduce((sum,r) => sum + pointsValue(r), 0);
 
   return `
     <div class="club-summary-grid">
@@ -4224,7 +4248,7 @@ function enduranceDisplayRaceName(record) {
 }
 
 function renderEnduranceRaceTable(records, tableId) {
-  const races = (records || []).filter(r => !isEnduranceClubAwardRecord(r));
+  const races = (records || []).filter(isEnduranceRaceRecord);
   if (!races.length) return `<div class="empty">No Endurance Club race records yet.</div>`;
 
   return `
