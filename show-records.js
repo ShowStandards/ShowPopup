@@ -158,7 +158,11 @@ function getActivityRulesForTotal(total, activityRules) {
     const totalKey = activityBaseKey(total.activity_key);
     const totalName = activityBaseKey(total.display_name);
 
-    return ruleKey === totalKey || ruleKey === totalName;
+    return (
+      ruleKey === totalKey ||
+      ruleKey === totalName ||
+      ruleKey.replace(/\s+/g, "_") === totalKey.replace(/\s+/g, "_")
+    );
   });
 }
 
@@ -1473,42 +1477,33 @@ function resolveActivityForRecord(record, activityTypes) {
   };
 }
 
-
 /*
-  TRICK NORMALIZATION — 2026-09-04
+  TRICK FAMILY NORMALIZATION — 2026-09-04
 
-  Historical records/titles use species-specific Trick families:
-    Equine Trick
-    Canine Trick
-    Feline Trick
+  New uploads may use the generic activity_key "Trick", while historical
+  records/title rules use species-specific families:
+    Equine Trick / Canine Trick / Feline Trick
 
-  Newer uploads may store the activity simply as "Trick".
-
-  Keep the DISPLAY name as "Trick", but route the internal activity key back to
-  the correct species-specific title family so old + new points combine and the
-  correct species title ladder is used.
+  Internally merge both forms by species. Display remains simply "Trick".
 */
-function canonicalActivityKeyForAnimal(value, animal) {
-  const base = activityBaseKey(value);
+function canonicalActivityFamilyKey(value, animal) {
+  const key = activityBaseKey(value);
   const species = normalizeKey(animal?.species);
 
   const trickAliases = new Set([
     "trick",
-    "equine trick",
-    "horse trick",
-    "canine trick",
-    "dog trick",
-    "feline trick",
-    "cat trick"
+    "equine trick", "horse trick",
+    "canine trick", "dog trick",
+    "feline trick", "cat trick"
   ]);
 
-  if (!trickAliases.has(base)) return base;
+  if (!trickAliases.has(key)) return key;
 
   if (species === "horse") return "equine trick";
   if (species === "dog") return "canine trick";
   if (species === "cat") return "feline trick";
 
-  return base;
+  return key;
 }
 
 function calculateActivityTotals(activityRecords, activityTypes, animal) {
@@ -1518,11 +1513,15 @@ function calculateActivityTotals(activityRecords, activityTypes, animal) {
     const activity = resolveActivityForRecord(record, activityTypes);
     if (!activity) return;
 
-    const rawKey = activityBaseKey(activity.activity_key || activity.display_name);
-    const key = canonicalActivityKeyForAnimal(rawKey, animal);
+    const rawKey = activity.activity_key || activity.display_name;
+    const key = canonicalActivityFamilyKey(rawKey, animal);
     if (!key) return;
 
-    const isTrickFamily = ["equine trick", "canine trick", "feline trick"].includes(key);
+    const isTrickFamily = [
+      "equine trick",
+      "canine trick",
+      "feline trick"
+    ].includes(key);
 
     if (!activityTotals[key]) {
       activityTotals[key] = {
@@ -1631,13 +1630,13 @@ function earliestRecordDate(records) {
 }
 
 function activityTitleEarnedDate(activityKey, activityRecords, activityTypes, animal) {
-  const target = canonicalActivityKeyForAnimal(activityKey, animal);
+  const target = canonicalActivityFamilyKey(activityKey, animal);
 
   const matching = (activityRecords || []).filter(record => {
     const activity = resolveActivityForRecord(record, activityTypes);
     if (!activity) return false;
 
-    const matchedKey = canonicalActivityKeyForAnimal(
+    const matchedKey = canonicalActivityFamilyKey(
       activity.activity_key || activity.display_name,
       animal
     );
