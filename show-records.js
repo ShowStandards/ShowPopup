@@ -2579,7 +2579,11 @@ function getEnduranceTitleProgressData(records, animal) {
 
   const allClub = (records || []).filter(isEnduranceClubRecord);
   const club = allClub.filter(record => !isEnduranceProspectRecord(record));
-  if (!allClub.length) return { rows: [], prefixes: [], suffixes: [] };
+
+  // Prospect classes are displayable Endurance Club results, but they are not
+  // title-track races. If the horse has only Prospect records, there is no
+  // Endurance title progression to display yet.
+  if (!club.length) return { rows: [], prefixes: [], suffixes: [] };
 
   const rows = [];
   const prefixes = [];
@@ -2613,6 +2617,8 @@ function getEnduranceTitleProgressData(records, animal) {
     if (winsByGrade[grade] !== undefined) winsByGrade[grade]++;
   });
 
+  // Only show a stakes ladder after the horse has actually earned progress in
+  // that grade. Prospect placings do not open Grade I/II/III title ladders.
   [
     ["III","EdSIII","Endurance Club Stakes III Winner",1,"suffix"],
     ["III","MEdSIII","Multi Endurance Club Stakes III Winner",2,"suffix"],
@@ -2624,34 +2630,44 @@ function getEnduranceTitleProgressData(records, animal) {
     ["I","MEdSI","Multi Endurance Club Stakes I Winner",2,"suffix"]
   ].forEach(([grade,code,title,need,position], index) => {
     const current = winsByGrade[grade] || 0;
+    if (current <= 0) return;
     add({category:`Grade ${grade} Stakes`,title,code,requirement:`${need} win${need===1?'':'s'}`,current:`${current} win${current===1?'':'s'}`,earned:current>=need,position,sort:100+index});
   });
 
   const gradeIGrandCurrent = (winsByGrade.I || 0) + (winsByGrade.INV || 0);
-  add({
-    category:"Grade I Stakes", title:"Grand Champion Endurance Stakes I Winner", code:"GChEdSI",
-    requirement:"5 Grade I / Invitational wins", current:`${gradeIGrandCurrent} qualifying wins`,
-    earned:gradeIGrandCurrent>=5, position:"prefix", sort:109
-  });
+  if (gradeIGrandCurrent > 0) {
+    add({
+      category:"Grade I Stakes", title:"Grand Champion Endurance Stakes I Winner", code:"GChEdSI",
+      requirement:"5 Grade I / Invitational wins", current:`${gradeIGrandCurrent} qualifying wins`,
+      earned:gradeIGrandCurrent>=5, position:"prefix", sort:109
+    });
+  }
 
-  [
-    [20000,"EdDCh","Endurance Club Distance Champion","suffix"],
-    [30000,"EdDGCh","Endurance Club Distance Grand Champion","suffix"],
-    [50000,"EdDHoF","Endurance Club Distance Hall of Fame","prefix"],
-    [100000,"EdDL","Endurance Club Distance Legend","prefix"]
-  ].forEach(([need,code,title,position], index) => add({
-    category:"Distance",title,code,requirement:`${Number(need).toLocaleString()} km`,
-    current:`${Math.round(totalDistance).toLocaleString()} km`,earned:totalDistance>=need,position,sort:200+index
-  }));
+  if (totalDistance > 0) {
+    [
+      [20000,"EdDCh","Endurance Club Distance Champion","suffix"],
+      [30000,"EdDGCh","Endurance Club Distance Grand Champion","suffix"],
+      [50000,"EdDHoF","Endurance Club Distance Hall of Fame","prefix"],
+      [100000,"EdDL","Endurance Club Distance Legend","prefix"]
+    ].forEach(([need,code,title,position], index) => add({
+      category:"Distance",title,code,requirement:`${Number(need).toLocaleString()} km`,
+      current:`${Math.round(totalDistance).toLocaleString()} km`,earned:totalDistance>=need,position,sort:200+index
+    }));
+  }
 
-  [
-    [50000,"EdHE","Endurance Club High Earner","suffix"],
-    [100000,"EdSpH","Endurance Club Superior High Earner","suffix"],
-    [150000,"EdHOFE","Endurance Club Hall of Fame Earner","prefix"]
-  ].forEach(([need,code,title,position], index) => add({
-    category:"Earnings",title,code,requirement:`$${Number(need).toLocaleString()}`,
-    current:`$${Math.round(totalWinnings).toLocaleString()}`,earned:totalWinnings>=need,position,sort:300+index
-  }));
+  // High Earner progress uses title-track Endurance races only. Prospect prize
+  // money is still displayed in the Club summary/result table, but does not
+  // advance this title family.
+  if (totalWinnings > 0) {
+    [
+      [50000,"EdHE","Endurance Club High Earner","suffix"],
+      [100000,"EdSpH","Endurance Club Superior High Earner","suffix"],
+      [150000,"EdHOFE","Endurance Club Hall of Fame Earner","prefix"]
+    ].forEach(([need,code,title,position], index) => add({
+      category:"Earnings",title,code,requirement:`$${Number(need).toLocaleString()}`,
+      current:`$${Math.round(totalWinnings).toLocaleString()}`,earned:totalWinnings>=need,position,sort:300+index
+    }));
+  }
 
   const circuitCodes = {
     "Northern Circuit": {completion:"NCCC",excellence:"NCCE",champion:"NCCCh",sweep:"NCCS"},
@@ -4194,8 +4210,12 @@ function enduranceClubSummary(records) {
   const races = club.filter(isEnduranceRaceRecord);
   const completed = races.filter(r => r?.endurance_completed === true || recordPassed(r) === true);
   const totalDistance = completed.reduce((sum,r) => sum + (Number(r?.endurance_distance_km) || 0), 0);
-  const totalMoney = races.reduce((sum,r) => sum + (Number(r?.endurance_winnings) || 0), 0);
-  const totalPoints = races.reduce((sum,r) => sum + pointsValue(r), 0);
+
+  // Prospect classes are still Endurance Club results: their placement points
+  // and prize money belong in the overall club summary. They simply are not
+  // completed races and do not advance race/title ladders.
+  const totalMoney = club.reduce((sum,r) => sum + (Number(r?.endurance_winnings) || 0), 0);
+  const totalPoints = club.reduce((sum,r) => sum + pointsValue(r), 0);
 
   return `
     <div class="club-summary-grid">
@@ -4268,6 +4288,35 @@ function renderEnduranceRaceTable(records, tableId) {
               <td>${pointsValue(r)}</td>
               <td>${Number(r?.endurance_distance_km || 0) ? `${Number(r.endurance_distance_km).toLocaleString()} km` : ""}</td>
               <td>${Number(r?.endurance_winnings || 0) ? `$${Number(r.endurance_winnings).toLocaleString()}` : ""}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderEnduranceProspectTable(records, tableId) {
+  const prospects = (records || []).filter(isEnduranceProspectRecord);
+  if (!prospects.length) return "";
+
+  return `
+    <h4 class="subsection-title">Prospect Results</h4>
+    ${yearFilterButtons(prospects, tableId)}
+    <div class="table-wrap">
+      <table class="records-table" id="${escapeHtml(tableId)}">
+        <thead><tr>
+          <th>Date</th><th>Show</th><th>Prospect Class</th><th>Placement</th><th>Points</th><th>Money Earned</th>
+        </tr></thead>
+        <tbody>
+          ${prospects.map(r => `
+            <tr data-year="${escapeHtml(recordYear(r))}">
+              <td>${escapeHtml(r.event_date || "")}</td>
+              <td>${escapeHtml(enduranceDisplayShowName(r))}</td>
+              <td>${escapeHtml(enduranceDisplayRaceName(r))}</td>
+              <td>${escapeHtml(r.placement || "")}</td>
+              <td>${pointsValue(r)}</td>
+              <td>${Number(r?.endurance_winnings || 0) ? `$${Number(r.endurance_winnings).toLocaleString()}` : "$0"}</td>
             </tr>
           `).join("")}
         </tbody>
@@ -4648,15 +4697,24 @@ function getClubPanels(records, animal, herdingRules) {
   const enduranceRecords = records.filter(isEnduranceClubRecord);
   if (enduranceRecords.length) {
     const data = calculateEnduranceClubTitles(records, animal);
+    const enduranceProgress = getEnduranceTitleProgressData(records, animal);
+    const hasEnduranceProgress = highestEnduranceProgressRows(enduranceProgress.rows).length > 0;
+    const actualRaceRecords = enduranceRecords.filter(isEnduranceRaceRecord);
+
     panels.push({
       key:"endurance", label:"Endurance Club",
       html:`<section class="panel">
         <h3 class="panel-title">Endurance Club</h3>
         ${enduranceClubSummary(records)}
-        <h4 class="subsection-title">Title Progress</h4>
-        ${renderEnduranceTitleProgress(records, animal)}
-        <h4 class="subsection-title">Race Records</h4>
-        ${renderEnduranceRaceTable(enduranceRecords, "club-records-endurance")}
+        ${hasEnduranceProgress ? `
+          <h4 class="subsection-title">Title Progress</h4>
+          ${renderEnduranceTitleProgress(records, animal)}
+        ` : ""}
+        ${actualRaceRecords.length ? `
+          <h4 class="subsection-title">Race Records</h4>
+          ${renderEnduranceRaceTable(enduranceRecords, "club-records-endurance")}
+        ` : ""}
+        ${renderEnduranceProspectTable(enduranceRecords, "club-records-endurance-prospect")}
         ${renderEnduranceAwards(enduranceRecords)}
       </section>`
     });
