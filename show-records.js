@@ -4205,6 +4205,32 @@ function isEnduranceRaceRecord(record) {
          !isEnduranceClubAwardRecord(record);
 }
 
+/*
+  Endurance winnings display / legacy repair.
+
+  Current Prospect uploads are carrying the placement points correctly, but
+  some records are arriving with endurance_winnings blank/0 even when the
+  Prospect class payout was configured.  Preserve any real stored winnings
+  first; only use the Prospect placement payout as a fallback.
+*/
+function enduranceWinningsValue(record) {
+  const stored = Number(record?.endurance_winnings);
+  if (Number.isFinite(stored) && stored > 0) return stored;
+
+  if (!isEnduranceProspectRecord(record)) {
+    return Number.isFinite(stored) ? stored : 0;
+  }
+
+  const placing = enduranceNumericPlacement(record);
+  const prospectPayout = {
+    1: 100,
+    2: 50,
+    3: 25
+  };
+
+  return Number(prospectPayout[placing] || 0);
+}
+
 function enduranceClubSummary(records) {
   const club = (records || []).filter(isEnduranceClubRecord);
   const races = club.filter(isEnduranceRaceRecord);
@@ -4214,7 +4240,7 @@ function enduranceClubSummary(records) {
   // Prospect classes are still Endurance Club results: their placement points
   // and prize money belong in the overall club summary. They simply are not
   // completed races and do not advance race/title ladders.
-  const totalMoney = club.reduce((sum,r) => sum + (Number(r?.endurance_winnings) || 0), 0);
+  const totalMoney = club.reduce((sum,r) => sum + enduranceWinningsValue(r), 0);
   const totalPoints = club.reduce((sum,r) => sum + pointsValue(r), 0);
 
   return `
@@ -4287,7 +4313,7 @@ function renderEnduranceRaceTable(records, tableId) {
               <td>${escapeHtml(r.placement || "")}</td>
               <td>${pointsValue(r)}</td>
               <td>${Number(r?.endurance_distance_km || 0) ? `${Number(r.endurance_distance_km).toLocaleString()} km` : ""}</td>
-              <td>${Number(r?.endurance_winnings || 0) ? `$${Number(r.endurance_winnings).toLocaleString()}` : ""}</td>
+              <td>${enduranceWinningsValue(r) ? `$${enduranceWinningsValue(r).toLocaleString()}` : ""}</td>
             </tr>
           `).join("")}
         </tbody>
@@ -4316,7 +4342,7 @@ function renderEnduranceProspectTable(records, tableId) {
               <td>${escapeHtml(enduranceDisplayRaceName(r))}</td>
               <td>${escapeHtml(r.placement || "")}</td>
               <td>${pointsValue(r)}</td>
-              <td>${Number(r?.endurance_winnings || 0) ? `$${Number(r.endurance_winnings).toLocaleString()}` : "$0"}</td>
+              <td>${`$${enduranceWinningsValue(r).toLocaleString()}`}</td>
             </tr>
           `).join("")}
         </tbody>
