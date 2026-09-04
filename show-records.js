@@ -1473,24 +1473,67 @@ function resolveActivityForRecord(record, activityTypes) {
   };
 }
 
-function calculateActivityTotals(activityRecords, activityTypes) {
+
+/*
+  TRICK NORMALIZATION — 2026-09-04
+
+  Historical records/titles use species-specific Trick families:
+    Equine Trick
+    Canine Trick
+    Feline Trick
+
+  Newer uploads may store the activity simply as "Trick".
+
+  Keep the DISPLAY name as "Trick", but route the internal activity key back to
+  the correct species-specific title family so old + new points combine and the
+  correct species title ladder is used.
+*/
+function canonicalActivityKeyForAnimal(value, animal) {
+  const base = activityBaseKey(value);
+  const species = normalizeKey(animal?.species);
+
+  const trickAliases = new Set([
+    "trick",
+    "equine trick",
+    "horse trick",
+    "canine trick",
+    "dog trick",
+    "feline trick",
+    "cat trick"
+  ]);
+
+  if (!trickAliases.has(base)) return base;
+
+  if (species === "horse") return "equine trick";
+  if (species === "dog") return "canine trick";
+  if (species === "cat") return "feline trick";
+
+  return base;
+}
+
+function calculateActivityTotals(activityRecords, activityTypes, animal) {
   const activityTotals = {};
 
   activityRecords.forEach(record => {
     const activity = resolveActivityForRecord(record, activityTypes);
     if (!activity) return;
 
-    const key = activityBaseKey(activity.activity_key || activity.display_name);
+    const rawKey = activityBaseKey(activity.activity_key || activity.display_name);
+    const key = canonicalActivityKeyForAnimal(rawKey, animal);
     if (!key) return;
+
+    const isTrickFamily = ["equine trick", "canine trick", "feline trick"].includes(key);
 
     if (!activityTotals[key]) {
       activityTotals[key] = {
         activity_key: key === "show hunter"
           ? "show_hunter"
-          : (activity.activity_key || key),
+          : (isTrickFamily ? key.replace(/\s+/g, "_") : (activity.activity_key || key)),
         display_name: key === "show hunter"
           ? "Show Hunter"
-          : (activity.display_name || fallbackActivityNameFromClass(record.class) || "Unknown Activity"),
+          : (isTrickFamily
+              ? "Trick"
+              : (activity.display_name || fallbackActivityNameFromClass(record.class) || "Unknown Activity")),
         points: 0
       };
     }
@@ -1587,14 +1630,18 @@ function earliestRecordDate(records) {
   return dates[0] || "9999-12-31";
 }
 
-function activityTitleEarnedDate(activityKey, activityRecords, activityTypes) {
-  const target = activityBaseKey(activityKey);
+function activityTitleEarnedDate(activityKey, activityRecords, activityTypes, animal) {
+  const target = canonicalActivityKeyForAnimal(activityKey, animal);
 
   const matching = (activityRecords || []).filter(record => {
     const activity = resolveActivityForRecord(record, activityTypes);
     if (!activity) return false;
 
-    const matchedKey = activityBaseKey(activity.activity_key || activity.display_name);
+    const matchedKey = canonicalActivityKeyForAnimal(
+      activity.activity_key || activity.display_name,
+      animal
+    );
+
     return matchedKey === target;
   });
 
@@ -3334,7 +3381,7 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
     });
   }
 
-  const activityTotals = calculateActivityTotals(activityRecords, activityTypes);
+  const activityTotals = calculateActivityTotals(activityRecords, activityTypes, animal);
 
   Object.keys(activityTotals).forEach(key => {
     const total = activityTotals[key];
@@ -3361,13 +3408,13 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
       if (activityTitlePosition === "prefix") {
         prefixActivityChampionshipTitles.push({
           code: displayedTitle,
-          earnedDate: activityTitleEarnedDate(total.activity_key || total.display_name, activityRecords, activityTypes),
+          earnedDate: activityTitleEarnedDate(total.activity_key || total.display_name, activityRecords, activityTypes, animal),
           activity: total.display_name || total.activity_key || ""
         });
       } else {
         suffixActivityTitles.push({
           code: displayedTitle,
-          earnedDate: activityTitleEarnedDate(total.activity_key || total.display_name, activityRecords, activityTypes),
+          earnedDate: activityTitleEarnedDate(total.activity_key || total.display_name, activityRecords, activityTypes, animal),
           activity: total.display_name || total.activity_key || ""
         });
       }
@@ -3602,7 +3649,7 @@ function buildRegisteredName(animal, titleData) {
   ].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
 }
 
-function getPointBasedTitleRows(records, titleRules, activityRules, activityTypes) {
+function getPointBasedTitleRows(records, titleRules, activityRules, activityTypes, animal) {
   const rows = [];
   const conformationRecords = records.filter(r => canonicalShowType(r.show_type) === "conformation");
   const conformationPoints = conformationRecords.reduce((sum, r) => sum + pointsValue(r), 0);
@@ -3628,7 +3675,7 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
     !isManualScoreRecord(r) &&
     !isBestInFieldActivityRecord(r)
   );
-  const activityTotals = calculateActivityTotals(activityRecords, activityTypes);
+  const activityTotals = calculateActivityTotals(activityRecords, activityTypes, animal);
 
   Object.values(activityTotals).forEach(total => {
     const herdingText = normalizeKey(`${total.activity_key || ""} ${total.display_name || ""}`);
@@ -4684,7 +4731,7 @@ function collapseTeamActivityRecords(records) {
 function renderRecords(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules) {
   const titleData = calculateTitleData(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules);
   const registeredName = buildRegisteredName(animal, titleData);
-  const pointRows = getPointBasedTitleRows(records, titleRules, activityRules, activityTypes);
+  const pointRows = getPointBasedTitleRows(records, titleRules, activityRules, activityTypes, animal);
   const clubs = getClubPanels(records, animal, herdingRules);
   const conformation = records.filter(r => canonicalShowType(r.show_type) === "conformation");
   const testingRecords = records.filter(isTestingCertificateRecord);
