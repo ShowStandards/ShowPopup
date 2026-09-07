@@ -2740,9 +2740,59 @@ function getEnduranceTitleProgressData(records, animal) {
   if (club.some(r=>String(r?.endurance_race_key||"").includes("dubai_crown_prince")) || dcpecEarned) {
     add({category:"Named Titles",title:"Dubai Crown Prince Endurance Cup",code:"DCPEC",requirement:"Win the Dubai Crown Prince Conference",current:dcpecEarned?"Winner":"Not yet earned",earned:dcpecEarned,sort:700});
   }
+  /*
+    ENDURANCE STAKES TITLE COLLAPSE
+    -------------------------------
+    The progress table intentionally knows about every threshold in a Stakes
+    ladder, but the animal's displayed title string must contain ONLY the
+    highest earned title for each grade.
 
-  return {rows:rows.sort((a,b)=>a.sort-b.sort),prefixes:uniqueTitleList(prefixes),suffixes:uniqueTitleList(suffixes)};
+      Grade III: EdSIII -> MEdSIII -> GChEdSIII
+      Grade II:  EdSII  -> MEdSII  -> GChEdSII
+      Grade I:   EdSI   -> MEdSI   -> GChEdSI
+
+    calculateEnduranceClubTitles() also merges these audited progress titles
+    into the final name, so collapse them here before that merge happens.
+  */
+  const stakesLadders = [
+    ["EdSIII", "MEdSIII", "GChEdSIII"],
+    ["EdSII", "MEdSII", "GChEdSII"],
+    ["EdSI", "MEdSI", "GChEdSI"]
+  ];
+
+  let finalPrefixes = uniqueTitleList(prefixes);
+  let finalSuffixes = uniqueTitleList(suffixes);
+
+  const earnedTitleCodes = new Set([
+    ...finalPrefixes,
+    ...finalSuffixes
+  ]);
+
+  stakesLadders.forEach(ladder => {
+    let highestEarned = null;
+
+    ladder.forEach(code => {
+      if (earnedTitleCodes.has(code)) highestEarned = code;
+    });
+
+    if (!highestEarned) return;
+
+    finalPrefixes = finalPrefixes.filter(
+      code => !ladder.includes(code) || code === highestEarned
+    );
+
+    finalSuffixes = finalSuffixes.filter(
+      code => !ladder.includes(code) || code === highestEarned
+    );
+  });
+
+  return {
+    rows: rows.sort((a,b)=>a.sort-b.sort),
+    prefixes: uniqueTitleList(finalPrefixes),
+    suffixes: uniqueTitleList(finalSuffixes)
+  };
 }
+
 
 function highestEnduranceProgressRows(rows) {
   /*
