@@ -240,6 +240,9 @@ function isBestInShowPlacement(placement) {
 }
 
 function isSpecialtyBestInShow(record) {
+  // Cross Breed Show BIS is not a specialty BISS.
+  if (isCrossBreedConformationRecord(record)) return false;
+
   const placement = normalizeSpecialtyText(record?.placement);
   const scope = normalizeSpecialtyText(record?.show_scope);
   const showName = normalizeSpecialtyText(record?.show_name);
@@ -256,6 +259,10 @@ function isSpecialtyBestInShow(record) {
 }
 
 function isAllBreedBestInShow(record) {
+  // Cross Breed Show BIS is part of the CM conformation system and must never
+  // manufacture a normal BIS/MBIS title.
+  if (isCrossBreedConformationRecord(record)) return false;
+
   const placement = normalizeSpecialtyText(record?.placement);
   const scope = normalizeSpecialtyText(record?.show_scope);
   const showName = normalizeSpecialtyText(record?.show_name);
@@ -3340,11 +3347,63 @@ function dedupeTestingCertificateRecords(records) {
   return output;
 }
 
+
+// =============================================================
+// CROSS-BREED CONFORMATION — isolated CM title family
+// =============================================================
+// IMPORTANT:
+// - Only show_scope="crossbreed" conformation records feed this ladder.
+// - These points are excluded from the normal Ch/GCh/NatCh/etc. ladder.
+// - CM / CM2 / CM3 are suffixes.
+// - ChCm / GrChCm are prefixes.
+// - Only the HIGHEST earned CM-family title is displayed.
+// - This code does not modify activity, versatility, club, manual, BIS/BISS,
+//   breeding-award, or Total Award title calculations.
+function isCrossBreedConformationRecord(record) {
+  if (canonicalShowType(record?.show_type) !== "conformation") return false;
+
+  const scope = normalizeKey(record?.show_scope)
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return scope === "crossbreed" || scope === "cross breed";
+}
+
+function calculateCrossBreedConformationTitle(records) {
+  const crossBreedRecords = (records || []).filter(isCrossBreedConformationRecord);
+  const points = crossBreedRecords.reduce((sum, record) => sum + pointsValue(record), 0);
+
+  const ladder = [
+    { code: "CM",     name: "Certificate of Merit",                points: 250,  position: "suffix" },
+    { code: "CM2",    name: "Certificate of Merit 2",              points: 500,  position: "suffix" },
+    { code: "CM3",    name: "Certificate of Merit 3",              points: 750,  position: "suffix" },
+    { code: "ChCm",   name: "Champion Certificate of Merit",       points: 1000, position: "prefix" },
+    { code: "GrChCm", name: "Grand Champion Certificate of Merit", points: 1500, position: "prefix" }
+  ];
+
+  const earned = ladder
+    .filter(title => points >= title.points)
+    .slice()
+    .sort((a, b) => b.points - a.points)[0] || null;
+
+  const next = ladder.find(title => points < title.points) || null;
+
+  return {
+    records: crossBreedRecords,
+    points,
+    earned,
+    next,
+    ladder
+  };
+}
+
 function calculateTitleData(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules) {
   const prefixBestInShowTitles = [];
   const prefixSpecialtyBestInShowTitles = [];
   const prefixBestInFieldTitles = [];
   const prefixConformationTitles = [];
+  const prefixCrossBreedTitles = [];
   const prefixActivityChampionshipTitles = [];
   const prefixManualTitles = [];
 
@@ -3356,10 +3415,18 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
   const suffixCgcTitles = [];
   const suffixTherapyTemperamentTitles = [];
   const suffixHerdingTitles = [];
+  const suffixCrossBreedTitles = [];
 
   const awardTitleRows = [];
 
-  const conformationRecords = records.filter(r => canonicalShowType(r.show_type) === "conformation");
+  // Keep the site's existing purebred conformation ladder completely intact,
+  // but explicitly remove Cross Breed Show records from its point total.
+  const conformationRecords = records.filter(r =>
+    canonicalShowType(r.show_type) === "conformation" &&
+    !isCrossBreedConformationRecord(r)
+  );
+  const crossBreedTitleData = calculateCrossBreedConformationTitle(records);
+
   const activityRecords = records.filter(r => canonicalShowType(r.show_type) === "activity" && !isManualScoreRecord(r) && !isBestInFieldActivityRecord(r));
 
   const conformationPoints = conformationRecords.reduce((sum, r) => sum + pointsValue(r), 0);
@@ -3371,6 +3438,30 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
   if (confTitle) {
     prefixConformationTitles.push(confTitle.title_code);
     earnedTitleCodes.push(confTitle.title_code);
+  }
+
+  // Cross-breed conformation title family.
+  // This is intentionally independent of title_rules so no existing
+  // conformation rule, position, threshold, or progression can be altered.
+  if (crossBreedTitleData.earned) {
+    const cmTitle = crossBreedTitleData.earned;
+
+    if (cmTitle.position === "prefix") {
+      prefixCrossBreedTitles.push(cmTitle.code);
+    } else {
+      suffixCrossBreedTitles.push(cmTitle.code);
+    }
+
+    awardTitleRows.push({
+      titleName: cmTitle.name,
+      titleCode: cmTitle.code,
+      count: `${crossBreedTitleData.points} Cross Breed conformation points`,
+      sort: 45
+    });
+
+    // Do NOT add CM-family codes to earnedTitleCodes.
+    // Versatility currently has its own established source map; keeping CM out
+    // prevents this new conformation family from changing existing V-title logic.
   }
 
   const allBreedBIS = countUniqueAwardWins(
@@ -3618,6 +3709,7 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
     ...prefixSpecialtyBestInShowTitles,
     ...prefixBestInFieldTitles,
     ...prefixConformationTitles,
+    ...prefixCrossBreedTitles,
     ...orderedActivityPrefixes,
     ...prefixManualTitles
   ]).filter(code => !isVersatilityTitleCode(code, animal?.species));
@@ -3625,6 +3717,7 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
   const suffixTitlesBase = uniqueTitleList([
     ...orderedActivitySuffixes,
     ...suffixHerdingTitles,
+    ...suffixCrossBreedTitles,
     ...suffixManualTitles,
     ...suffixBreedingAwardTitles,
     ...suffixTotalAwardTitles,
@@ -3721,7 +3814,11 @@ function buildRegisteredName(animal, titleData) {
 
 function getPointBasedTitleRows(records, titleRules, activityRules, activityTypes, animal) {
   const rows = [];
-  const conformationRecords = records.filter(r => canonicalShowType(r.show_type) === "conformation");
+  const crossBreedTitleData = calculateCrossBreedConformationTitle(records);
+  const conformationRecords = records.filter(r =>
+    canonicalShowType(r.show_type) === "conformation" &&
+    !isCrossBreedConformationRecord(r)
+  );
   const conformationPoints = conformationRecords.reduce((sum, r) => sum + pointsValue(r), 0);
   const confRules = (titleRules || [])
     .filter(r => normalizeKey(r.applies_to) === "conformation")
@@ -3730,15 +3827,34 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
   const confTitle = highestTitle(conformationPoints, confRules);
   const confNext = confRules.find(r => Number(r.points_required || 0) > conformationPoints);
 
-  rows.push({
-    activity: "Conformation",
-    title: confTitle ? `${confTitle.title_code} ${confTitle.title_name || ""}`.trim() : "No title yet",
-    required: confTitle ? Number(confTitle.points_required || 0) : Number(confNext?.points_required || 0),
-    earned: conformationPoints,
-    status: confTitle ? "Earned" : "In Progress",
-    maxed: hasMaxedBaseTitle(conformationPoints, confRules),
-    sort: 0
-  });
+  // Preserve the normal conformation row for every existing animal.
+  // For a crossbreed-only animal, suppress the irrelevant 0-point purebred row.
+  if (conformationRecords.length || !crossBreedTitleData.records.length) {
+    rows.push({
+      activity: "Conformation",
+      title: confTitle ? `${confTitle.title_code} ${confTitle.title_name || ""}`.trim() : "No title yet",
+      required: confTitle ? Number(confTitle.points_required || 0) : Number(confNext?.points_required || 0),
+      earned: conformationPoints,
+      status: confTitle ? "Earned" : "In Progress",
+      maxed: hasMaxedBaseTitle(conformationPoints, confRules),
+      sort: 0
+    });
+  }
+
+  if (crossBreedTitleData.records.length) {
+    const earned = crossBreedTitleData.earned;
+    const next = crossBreedTitleData.next;
+
+    rows.push({
+      activity: "Cross Breed Conformation",
+      title: earned ? `${earned.code} ${earned.name}` : "No title yet",
+      required: earned ? earned.points : Number(next?.points || 0),
+      earned: crossBreedTitleData.points,
+      status: earned ? "Earned" : "In Progress",
+      maxed: crossBreedTitleData.points >= 1500,
+      sort: 0.5
+    });
+  }
 
   const activityRecords = records.filter(r =>
     canonicalShowType(r.show_type) === "activity" &&
