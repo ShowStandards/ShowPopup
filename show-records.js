@@ -4869,18 +4869,24 @@ function collapseTeamActivityRecords(records) {
 }
 
 function renderRecords(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules) {
-  const titleData = calculateTitleData(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules);
-  const registeredName = buildRegisteredName(animal, titleData);
-
-  // Send the exact popup-calculated registered name back to a parent Profile page.
-  if (window.parent && window.parent !== window) {
-    window.parent.postMessage({
-      type: "showstandard-profile-title",
-      animalId: String(animal?.id || ""),
-      animalNumber: String(animal?.animal_number || ""),
-      registeredName: String(registeredName || "")
-    }, window.location.origin);
+  if (!window.ShowStandardTitleEngine) {
+    throw new Error("Shared title engine failed to load.");
   }
+
+  const titleData = window.ShowStandardTitleEngine.calculateTitleData(
+    records,
+    animal,
+    titleRules,
+    activityRules,
+    activityTypes,
+    totalRules,
+    herdingRules
+  );
+
+  const registeredName = window.ShowStandardTitleEngine.buildNameFromTitleData(
+    animal,
+    titleData
+  );
   const pointRows = getPointBasedTitleRows(records, titleRules, activityRules, activityTypes, animal);
   const clubs = getClubPanels(records, animal, herdingRules);
   const conformation = records.filter(r => canonicalShowType(r.show_type) === "conformation");
