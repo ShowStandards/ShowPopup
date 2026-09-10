@@ -31,31 +31,56 @@ window.addEventListener("error", function (event) {
   const params = new URLSearchParams(window.location.search);
   const version = params.get("v") || Date.now();
 
+  // Load Show Records CSS
   const css = document.createElement("link");
   css.rel = "stylesheet";
   css.href = "show-records.css?v=" + encodeURIComponent(version);
   document.head.appendChild(css);
 
-  const script = document.createElement("script");
-  script.src = "show-records.js?v=" + encodeURIComponent(version);
+  // ---------------------------------------------------------
+  // STEP 1: Load the shared title engine FIRST
+  // ---------------------------------------------------------
+  const titleEngine = document.createElement("script");
+  titleEngine.src =
+    "show-title-engine.js?v=" + encodeURIComponent(version);
 
-  script.onload = function () {
-    if (typeof bootShowRecords === "function") {
-      bootShowRecords();
-    } else if (typeof loadRecords === "function") {
-      loadRecords();
-    }
+  titleEngine.onload = function () {
+
+    // -------------------------------------------------------
+    // STEP 2: Once the title engine is ready, load Show Records
+    // -------------------------------------------------------
+    const script = document.createElement("script");
+    script.src =
+      "show-records.js?v=" + encodeURIComponent(version);
+
+    script.onload = function () {
+      if (typeof bootShowRecords === "function") {
+        bootShowRecords();
+      } else if (typeof loadRecords === "function") {
+        loadRecords();
+      }
+    };
+
+    script.onerror = function () {
+      const content = document.getElementById("content");
+      if (content) {
+        content.innerHTML =
+          '<div class="empty">Show Records JavaScript failed to load.</div>';
+      }
+    };
+
+    document.body.appendChild(script);
   };
 
-  script.onerror = function () {
+  titleEngine.onerror = function () {
     const content = document.getElementById("content");
     if (content) {
       content.innerHTML =
-        '<div class="empty">Show Records JavaScript failed to load.</div>';
+        '<div class="empty">Shared title engine failed to load.</div>';
     }
   };
 
-  document.body.appendChild(script);
+  document.body.appendChild(titleEngine);
 })();
 </script>
 </body>
