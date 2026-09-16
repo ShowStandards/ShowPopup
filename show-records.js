@@ -1513,7 +1513,10 @@ function calculateActivityTotals(activityRecords, activityTypes, animal) {
     // Association-only Hunting Club records must never become Standard Activity
     // point/title rows. Normal site Hunting records have no hunting_club
     // association_key, so the real Hunting activity remains untouched.
-    if (normalizeKey(record?.association_key) === "hunting club") return;
+    if (
+      normalizeKey(record?.association_key) === "hunting club" ||
+      normalizeKey(record?.class).startsWith("hunting field test")
+    ) return;
 
     const activity = resolveActivityForRecord(record, activityTypes);
     if (!activity) return;
@@ -4899,6 +4902,7 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
   const activities = collapseTeamActivityRecords(records.filter(r =>
     canonicalShowType(r.show_type) === "activity" &&
     normalizeKey(r?.association_key) !== "hunting club" &&
+    !normalizeKey(r?.class).startsWith("hunting field test") &&
     !isTestingCertificateRecord(r) &&
     !isManualScoreRecord(r) &&
     !isBestInFieldActivityRecord(r)
