@@ -1510,6 +1510,16 @@ function calculateActivityTotals(activityRecords, activityTypes, animal) {
   const activityTotals = {};
 
   activityRecords.forEach(record => {
+    // Hunting Club Field Tests are association records, not Standard Activities.
+    // Keep them in show_records for Hunting Club progression, but do not create
+    // point-based Activity title rows from them.
+    if (
+      normalizeKey(record?.association_key) === "hunting club" &&
+      normalizeKey(record?.association_event_type) === "field test"
+    ) {
+      return;
+    }
+
     const activity = resolveActivityForRecord(record, activityTypes);
     if (!activity) return;
 
