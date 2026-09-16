@@ -4898,6 +4898,7 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
   const testingRecords = records.filter(isTestingCertificateRecord);
   const activities = collapseTeamActivityRecords(records.filter(r =>
     canonicalShowType(r.show_type) === "activity" &&
+    normalizeKey(r?.association_key) !== "hunting club" &&
     !isTestingCertificateRecord(r) &&
     !isManualScoreRecord(r) &&
     !isBestInFieldActivityRecord(r)
