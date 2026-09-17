@@ -936,6 +936,19 @@ function buildSummary(records) {
 function formatScore(record) {
   if (isHerdingInstinctRecord(record)) return "-";
 
+  // Spaniel Club Working and Companion Classes are placement-only activities.
+  // Older Working uploads may still contain a descriptive score_label; suppress
+  // that stale label in the popup without changing any stored record or any
+  // genuinely scored activity/challenge.
+  const spanielAssociation = normalizeKey(record?.association_key);
+  const spanielEvent = normalizeKey(record?.association_event_type);
+  if (
+    (spanielAssociation === "spaniel club" || spanielAssociation === "spaniel_club") &&
+    (spanielEvent === "working" || spanielEvent === "companion")
+  ) {
+    return "-";
+  }
+
   const score = record?.score;
   const maxScore = record?.max_score;
   const scoreLabel = record?.score_label;
