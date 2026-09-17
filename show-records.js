@@ -4745,8 +4745,31 @@ function calculateSpanielClubTitles(records, animal) {
   };
 }
 
-function spanielCheck(done, text) {
-  return `<div class="club-progress-item ${done ? "complete" : ""}"><strong>${done ? "✓" : "○"}</strong> ${escapeHtml(text)}</div>`;
+function spanielProgressRow(done, label, value) {
+  return `
+    <div class="spaniel-progress-row ${done ? "complete" : ""}">
+      <span class="spaniel-progress-icon" aria-hidden="true">${done ? "✓" : "○"}</span>
+      <span class="spaniel-progress-label">${escapeHtml(label)}</span>
+      <strong class="spaniel-progress-value">${escapeHtml(value)}</strong>
+    </div>
+  `;
+}
+
+function spanielTitleCard(code, title, earned, rows) {
+  return `
+    <div class="spaniel-title-card ${earned ? "earned" : ""}">
+      <div class="spaniel-title-head">
+        <span class="spaniel-title-code">${escapeHtml(code)}</span>
+        <div>
+          <h4>${escapeHtml(title)}</h4>
+          <small>${earned ? "Title earned" : "Title progress"}</small>
+        </div>
+      </div>
+      <div class="spaniel-progress-list">
+        ${rows.join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderSpanielClubProgress(records, animal) {
@@ -4762,28 +4785,55 @@ function renderSpanielClubProgress(records, animal) {
     ? "Tracking / Scent Work"
     : "Hunting / Retrieving";
 
+  const dpsRows = [
+    spanielProgressRow(p.bobCount >= 1, "Best of Breed", `${p.bobCount} / 1`),
+    spanielProgressRow(
+      p.primaryCount >= 1,
+      `${primaryLabel} placement · 1st–3rd, 6+ dogs`,
+      `${p.primaryCount} / 1`
+    ),
+    spanielProgressRow(
+      p.challengeQs >= 2,
+      "Different Challenge Classes",
+      `${p.challengeQs} / 2`
+    )
+  ];
+
+  const vtsRows = [
+    spanielProgressRow(p.bobCount >= 3, "Best of Breed", `${p.bobCount} / 3`),
+    spanielProgressRow(
+      p.primaryCount >= 3,
+      `${primaryLabel} placements · 1st–3rd, 6+ dogs`,
+      `${p.primaryCount} / 3`
+    ),
+    spanielProgressRow(
+      p.secondaryFamilies.length >= 1,
+      "Other recognized activity placement",
+      `${p.secondaryFamilies.length} / 1`
+    ),
+    spanielProgressRow(
+      p.challengeQs >= 3,
+      "Different Challenge Classes",
+      `${p.challengeQs} / 3`
+    )
+  ];
+
+  const cspRows = [
+    spanielProgressRow(p.dpsEarned, "Dual Purpose Spaniel (DpS)", p.dpsEarned ? "Earned" : "Needed"),
+    spanielProgressRow(p.vtsEarned, "Versatile Spaniel (VtS)", p.vtsEarned ? "Earned" : "Needed"),
+    spanielProgressRow(p.bisCount >= 1, "Spaniel Club Best in Show", `${p.bisCount} / 1`),
+    spanielProgressRow(
+      p.completeChallengeWins >= 1,
+      "Complete Spaniel Challenge win",
+      `${p.completeChallengeWins} / 1`
+    )
+  ];
+
   return `
-    <div class="club-progress-grid">
-      <div class="club-progress-card">
-        <h4>Dual Purpose Spaniel (DpS)</h4>
-        ${spanielCheck(p.bobCount >= 1, `Best of Breed: ${p.bobCount}/1`)}
-        ${spanielCheck(p.primaryCount >= 1, `${primaryLabel} placements (1st-3rd, 6+ dogs): ${p.primaryCount}/1`)}
-        ${spanielCheck(p.challengeQs >= 2, `Challenge Class qualifications: ${p.challengeQs}/2`)}
-      </div>
-      <div class="club-progress-card">
-        <h4>Versatile Spaniel (VtS)</h4>
-        ${spanielCheck(p.bobCount >= 3, `Best of Breed: ${p.bobCount}/3`)}
-        ${spanielCheck(p.primaryCount >= 3, `${primaryLabel} placements (1st-3rd, 6+ dogs): ${p.primaryCount}/3`)}
-        ${spanielCheck(p.secondaryFamilies.length >= 1, `Other offered activity placement: ${p.secondaryFamilies.length}/1`)}
-        ${spanielCheck(p.challengeQs >= 3, `Challenge Class qualifications: ${p.challengeQs}/3`)}
-      </div>
-      <div class="club-progress-card">
-        <h4>Complete Spaniel (CSp)</h4>
-        ${spanielCheck(p.dpsEarned, `Dual Purpose Spaniel (DpS): ${p.dpsEarned ? "Earned" : "Not yet earned"}`)}
-        ${spanielCheck(p.vtsEarned, `Versatile Spaniel (VtS): ${p.vtsEarned ? "Earned" : "Not yet earned"}`)}
-        ${spanielCheck(p.bisCount >= 1, `Spaniel Club Best in Show: ${p.bisCount}/1`)}
-        ${spanielCheck(p.completeChallengeWins >= 1, `Complete Spaniel Challenge win: ${p.completeChallengeWins}/1`)}
-      </div>
+    <div class="spaniel-title-grid">
+      ${spanielTitleCard("DpS", "Dual Purpose Spaniel", p.dpsEarned, dpsRows)}
+      ${spanielTitleCard("VtS", "Versatile Spaniel", p.vtsEarned, vtsRows)}
+      ${spanielTitleCard("CSp", "Complete Spaniel", p.cspEarned, cspRows)}
     </div>
   `;
 }
