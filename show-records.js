@@ -4462,14 +4462,66 @@ function isSpanielClubRecord(record) {
   return association === "spaniel club" || association === "spaniel_club" || text.includes("spaniel club");
 }
 
+// =========================================================
+// SPANIEL CLUB — BREED DIVISIONS
+// Registered breed is authoritative; saved division is fallback.
+// =========================================================
+
+const SPANIEL_COMPANION_BREEDS = new Set([
+  "cavalier king charles spaniel",
+  "english toy spaniel",
+  "markiesje",
+  "papillon",
+  "phalene"
+]);
+
+const SPANIEL_HUNTING_BREEDS = new Set([
+  "american cocker spaniel",
+  "american water spaniel",
+  "blue picardy spaniel",
+  "boykin spaniel",
+  "clumber spaniel",
+  "drentse patrijshond",
+  "english cocker spaniel",
+  "english springer spaniel",
+  "field spaniel",
+  "french spaniel",
+  "german spaniel",
+  "irish water spaniel",
+  "kooikerhondje",
+  "picardy spaniel",
+  "pont-audemer spaniel",
+  "russian spaniel",
+  "stabyhoun",
+  "sussex spaniel",
+  "welsh springer spaniel"
+]);
+
+function spanielBreedKey(value) {
+  return normalizeKey(value)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function spanielDivisionFromBreed(animal) {
+  const breed = spanielBreedKey(animal?.breed);
+  if (SPANIEL_COMPANION_BREEDS.has(breed)) return "companion";
+  if (SPANIEL_HUNTING_BREEDS.has(breed)) return "hunting";
+  return "unknown";
+}
+
 function spanielDivision(records, animal) {
+  const breedDivision = spanielDivisionFromBreed(animal);
+  if (breedDivision !== "unknown") return breedDivision;
+
   const explicit = (records || []).map(r =>
     normalizeKey(r?.spaniel_division || r?.association_division || r?.division)
   ).find(Boolean);
 
   if (explicit) {
     if (explicit.includes("companion")) return "companion";
-    if (explicit.includes("hunting")) return "hunting";
+    if (explicit.includes("hunting") || explicit.includes("working")) return "hunting";
   }
 
   const animalText = normalizeKey([
@@ -4477,16 +4529,21 @@ function spanielDivision(records, animal) {
     animal?.breed_group,
     animal?.group
   ].filter(Boolean).join(" "));
-  if (animalText.includes("companion")) return "companion";
-  if (animalText.includes("hunting")) return "hunting";
 
-  // Last-resort inference is only used when the upload contains one side of the
-  // club split but no explicit division metadata.
+  if (animalText.includes("companion")) return "companion";
+  if (animalText.includes("hunting") || animalText.includes("working")) return "hunting";
+
   const activityKeys = (records || []).map(spanielActivityFamily).filter(Boolean);
-  const hasHuntingSide = activityKeys.some(k => k === "hunting" || k === "retrieving" || k === "falconry");
-  const hasCompanionSide = activityKeys.some(k => k === "tracking" || k === "scent work");
+  const hasHuntingSide = activityKeys.some(k =>
+    k === "hunting" || k === "retrieving" || k === "falconry"
+  );
+  const hasCompanionSide = activityKeys.some(k =>
+    k === "tracking" || k === "scent work"
+  );
+
   if (hasHuntingSide && !hasCompanionSide) return "hunting";
   if (hasCompanionSide && !hasHuntingSide) return "companion";
+
   return "unknown";
 }
 
@@ -4676,7 +4733,7 @@ function renderSpanielClubProgress(records, animal) {
   if (!p) return `<div class="empty">No Spaniel Club title progress yet.</div>`;
 
   if (data.division === "unknown") {
-    return `<div class="empty">Spaniel division could not be determined. Save <strong>Hunting Spaniel</strong> or <strong>Companion Spaniel</strong> on the club upload/record so DpS and VtS can be calculated safely.</div>`;
+    return `<div class="empty">Spaniel division could not be determined from this dog's registered breed. Check that the registry breed name matches a Companion Spaniel or Hunting Spaniel breed in the Spaniel Club list.</div>`;
   }
 
   const primaryLabel = data.division === "companion"
@@ -4749,7 +4806,7 @@ function getClubPanels(records, animal, herdingRules) {
             <strong>${escapeHtml(
               data.division === "unknown"
                 ? "—"
-                : (data.division === "companion" ? "Companion Spaniel" : "Working Spaniel")
+                : (data.division === "companion" ? "Companion Spaniel" : "Hunting Spaniel")
             )}</strong>
           </div>
 
