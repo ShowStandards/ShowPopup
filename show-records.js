@@ -4648,8 +4648,8 @@ function calculateSpanielClubTitles(records, animal) {
   const challengeQs = uniqueSpanielCount(clubRecords, isSpanielChallengeQualification, "challenge");
 
   const primaryFamilies = division === "companion"
-    ? ["tracking", "scent work", "shed dog"]
-    : ["hunting", "retrieving", "falconry", "shed dog"];
+    ? ["tracking", "scent work"]
+    : ["hunting", "retrieving"];
 
   const qualifyingActivityRecords = clubRecords.filter(r =>
     canonicalShowType(r?.show_type) === "activity" &&
@@ -4667,9 +4667,30 @@ function calculateSpanielClubTitles(records, animal) {
 
   const secondaryFamilies = [...new Set(secondaryQualifiers.map(spanielActivityFamily).filter(Boolean))];
 
+  // CSp requires a WIN in the Complete Spaniel Challenge.
+  const completeChallengeWins = uniqueSpanielCount(
+    clubRecords,
+    r => {
+      if (!isSpanielChallengeRecord(r)) return false;
+      const text = spanielClubText(r);
+      const isCompleteChallenge = text.includes("complete spaniel challenge");
+      const placement = normalizeKey(r?.placement);
+      const isWin =
+        placement === "1" ||
+        placement === "1st" ||
+        placement.startsWith("1st ") ||
+        placement.includes("1st place") ||
+        placement.includes("first place") ||
+        placement === "winner" ||
+        placement === "win";
+      return isCompleteChallenge && isWin;
+    },
+    "complete-spaniel-challenge-win"
+  );
+
   const dpsEarned = division !== "unknown" && bobCount >= 1 && primaryCount >= 1 && challengeQs >= 2;
   const vtsEarned = division !== "unknown" && bobCount >= 3 && primaryCount >= 3 && secondaryFamilies.length >= 1 && challengeQs >= 3;
-  const cspEarned = dpsEarned && vtsEarned && bisCount >= 1;
+  const cspEarned = dpsEarned && vtsEarned && bisCount >= 1 && completeChallengeWins >= 1;
 
   const prefixes = [];
   const suffixes = [];
@@ -4718,6 +4739,7 @@ function calculateSpanielClubTitles(records, animal) {
       dpsEarned,
       vtsEarned,
       cspEarned,
+      completeChallengeWins,
       primaryFamilies
     }
   };
@@ -4737,8 +4759,8 @@ function renderSpanielClubProgress(records, animal) {
   }
 
   const primaryLabel = data.division === "companion"
-    ? "Tracking / Scent Work / Shed Dog"
-    : "Hunting / Retrieving / Falconry / Shed Dog";
+    ? "Tracking / Scent Work"
+    : "Hunting / Retrieving";
 
   return `
     <div class="club-progress-grid">
@@ -4760,6 +4782,7 @@ function renderSpanielClubProgress(records, animal) {
         ${spanielCheck(p.dpsEarned, `Dual Purpose Spaniel (DpS): ${p.dpsEarned ? "Earned" : "Not yet earned"}`)}
         ${spanielCheck(p.vtsEarned, `Versatile Spaniel (VtS): ${p.vtsEarned ? "Earned" : "Not yet earned"}`)}
         ${spanielCheck(p.bisCount >= 1, `Spaniel Club Best in Show: ${p.bisCount}/1`)}
+        ${spanielCheck(p.completeChallengeWins >= 1, `Complete Spaniel Challenge win: ${p.completeChallengeWins}/1`)}
       </div>
     </div>
   `;
