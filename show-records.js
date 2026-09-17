@@ -4743,11 +4743,30 @@ function getClubPanels(records, animal, herdingRules) {
       key:"spaniel", label:"Spaniel Club",
       html:`<section class="panel">
         <h3 class="panel-title">Spaniel Club</h3>
-        <div class="summary-grid">
-          <div class="summary-card"><strong>${escapeHtml(data.division === "unknown" ? "—" : (data.division === "companion" ? "Companion" : "Hunting"))}</strong>Division</div>
-          <div class="summary-card"><strong>${data.progress?.bobCount || 0}</strong>Best of Breed Wins</div>
-          <div class="summary-card"><strong>${data.progress?.bisCount || 0}</strong>Best in Show Wins</div>
-          <div class="summary-card"><strong>${data.progress?.challengeQs || 0}</strong>Challenge Qualifications</div>
+              <div class="club-summary-grid">
+          <div class="mini-stat">
+            <span>Division</span>
+            <strong>${escapeHtml(
+              data.division === "unknown"
+                ? "—"
+                : (data.division === "companion" ? "Companion Spaniel" : "Working Spaniel")
+            )}</strong>
+          </div>
+
+          <div class="mini-stat">
+            <span>Best of Breed Wins</span>
+            <strong>${data.progress?.bobCount || 0}</strong>
+          </div>
+
+          <div class="mini-stat">
+            <span>Best in Show Wins</span>
+            <strong>${data.progress?.bisCount || 0}</strong>
+          </div>
+
+          <div class="mini-stat">
+            <span>Challenge Qualifications</span>
+            <strong>${data.progress?.challengeQs || 0}</strong>
+          </div>
         </div>
         <h4 class="subsection-title">Title Progress</h4>
         ${renderSpanielClubProgress(records, animal)}
