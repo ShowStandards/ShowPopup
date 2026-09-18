@@ -3714,7 +3714,8 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
   const activityRecords = records.filter(r =>
     canonicalShowType(r.show_type) === "activity" &&
     !isManualScoreRecord(r) &&
-    !isBestInFieldActivityRecord(r)
+    !isBestInFieldActivityRecord(r) &&
+    !isSpanielChallengeRecord(r)
   );
   const activityTotals = calculateActivityTotals(activityRecords, activityTypes, animal);
 
@@ -4881,7 +4882,14 @@ function getClubPanels(records, animal, herdingRules) {
   const spanielRecords = records.filter(isSpanielClubRecord);
   if (spanielRecords.length) {
     const data = calculateSpanielClubTitles(records, animal);
-    const ordinarySpanielRecords = spanielRecords.filter(r => !isSpanielChallengeRecord(r));
+    const spanielConformationRecords = spanielRecords.filter(r =>
+      !isSpanielChallengeRecord(r) &&
+      (normalizeKey(r?.association_event_type) === "conformation" || canonicalShowType(r?.show_type) === "conformation")
+    );
+    const spanielActivityRecords = spanielRecords.filter(r =>
+      !isSpanielChallengeRecord(r) &&
+      canonicalShowType(r?.show_type) === "activity"
+    );
     panels.push({
       key:"spaniel", label:"Spaniel Club",
       html:`<section class="panel">
@@ -4913,10 +4921,14 @@ function getClubPanels(records, animal, herdingRules) {
         </div>
         <h4 class="subsection-title">Title Progress</h4>
         ${renderSpanielClubProgress(records, animal)}
-        ${ordinarySpanielRecords.length ? `
-          <h4 class="subsection-title">Club Records</h4>
-          ${renderRecordTable(ordinarySpanielRecords, "club-records-spaniel")}
-        ` : ""}
+        <h4 class="subsection-title">Conformation Records</h4>
+        ${spanielConformationRecords.length
+          ? renderRecordTable(spanielConformationRecords, "club-records-spaniel-conformation")
+          : `<div class="empty">No Spaniel Club conformation records yet.</div>`}
+        <h4 class="subsection-title">Activity Records</h4>
+        ${spanielActivityRecords.length
+          ? renderRecordTable(spanielActivityRecords, "club-records-spaniel-activities")
+          : `<div class="empty">No Spaniel Club activity records yet.</div>`}
         <h4 class="subsection-title">Challenge Classes</h4>
         ${renderSpanielChallengeTable(spanielRecords)}
       </section>`
@@ -5067,7 +5079,8 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
     !normalizeKey(r?.class).startsWith("hunting field test") &&
     !isTestingCertificateRecord(r) &&
     !isManualScoreRecord(r) &&
-    !isBestInFieldActivityRecord(r)
+    !isBestInFieldActivityRecord(r) &&
+    !isSpanielChallengeRecord(r)
   ));
 
   const nav = [
