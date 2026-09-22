@@ -4924,12 +4924,16 @@ const FAC_SHOW_LEVELS = [
 function isFelineAthletesRecord(r){ return normalizeKey(r?.association_key)==='feline athletes club'; }
 function facRecordLevel(r){
   const t=normalizeKey(r?.class || r?.class_name || '');
-  if(t.includes('champion')) return 'champion';
-  if(t.includes('master')) return 'master';
-  if(t.includes('excellent')) return 'excellent';
-  if(t.includes('advanced') || t.includes('advance')) return 'advanced';
-  if(t.includes('athlete')) return 'athlete';
-  if(t.includes('novice')) return 'novice';
+
+  // IMPORTANT: every FAC class name begins with "Feline Athletes Club".
+  // Therefore a generic t.includes('athlete') check incorrectly labels
+  // Novice records as Athlete. Match the actual level segment instead.
+  if(/(?:^| - )champion(?: - |$)/.test(t)) return 'champion';
+  if(/(?:^| - )master(?: - |$)/.test(t)) return 'master';
+  if(/(?:^| - )excellent(?: - |$)/.test(t)) return 'excellent';
+  if(/(?:^| - )(advanced|advance)(?: - |$)/.test(t)) return 'advanced';
+  if(/(?:^| - )novice(?: - |$)/.test(t)) return 'novice';
+  if(/(?:^| - )athlete(?: - |$)/.test(t)) return 'athlete';
   return null;
 }
 function facQualification(r){
