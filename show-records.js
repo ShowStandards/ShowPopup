@@ -1,11 +1,9 @@
-// Show Records — Herding Fun Class / Club Stakes separation fix — 2026-08-30
-const supabaseUrl = "https://vyuklkrqusfvrcaqxmfm.supabase.co";
-const supabaseKey = "sb_publishable_2LSbJafkRatck5Ei8HXL-g_0tezT6qu";
-
-window.supabaseClient = window.supabase.createClient(
-  supabaseUrl,
-  supabaseKey
-);
+// =========================================================
+// SHOW STANDARD - SHARED TITLE ENGINE
+// ONE SOURCE OF TRUTH FOR POPUP + PROFILE
+// =========================================================
+(function () {
+"use strict";
 
 function getSupabase() {
   return window.supabaseClient;
@@ -960,19 +958,6 @@ function buildSummary(records) {
 function formatScore(record) {
   if (isHerdingInstinctRecord(record)) return "-";
 
-  // Spaniel Club Working and Companion Classes are placement-only activities.
-  // Older Working uploads may still contain a descriptive score_label; suppress
-  // that stale label in the popup without changing any stored record or any
-  // genuinely scored activity/challenge.
-  const spanielAssociation = normalizeKey(record?.association_key);
-  const spanielEvent = normalizeKey(record?.association_event_type);
-  if (
-    (spanielAssociation === "spaniel club" || spanielAssociation === "spaniel_club") &&
-    (spanielEvent === "working" || spanielEvent === "companion")
-  ) {
-    return "-";
-  }
-
   const score = record?.score;
   const maxScore = record?.max_score;
   const scoreLabel = record?.score_label;
@@ -1547,14 +1532,6 @@ function calculateActivityTotals(activityRecords, activityTypes, animal) {
   const activityTotals = {};
 
   activityRecords.forEach(record => {
-    // Association-only Hunting Club records must never become Standard Activity
-    // point/title rows. Normal site Hunting records have no hunting_club
-    // association_key, so the real Hunting activity remains untouched.
-    if (
-      normalizeKey(record?.association_key) === "hunting club" ||
-      normalizeKey(record?.class).startsWith("hunting field test")
-    ) return;
-
     const activity = resolveActivityForRecord(record, activityTypes);
     if (!activity) return;
 
@@ -3335,6 +3312,51 @@ function dedupeTestingCertificateRecords(records) {
   return output;
 }
 
+const FAC_SPORT_KEYS = ['feline_agility','timed_sprint','high_jump','long_jump','equilibrium','tower_climb','escape_cat'];
+const FAC_LEVEL_RULES = [
+  {key:'novice', label:'Novice', code:'AthN', name:'Athlete Novice', required:2, position:'suffix'},
+  {key:'athlete', label:'Athlete', code:'Ath', name:'Athlete', required:3, position:'suffix'},
+  {key:'advanced', label:'Advanced', code:'AthA', name:'Athlete Advanced', required:4, position:'suffix'},
+  {key:'excellent', label:'Excellent', code:'AthX', name:'Athlete Excellent', required:5, position:'suffix'},
+  {key:'master', label:'Master', code:'MAth', name:'Master Athlete', required:6, position:'suffix'},
+  {key:'champion', label:'Champion', code:'AthCh.', name:'Athlete Champion', required:7, position:'prefix'}
+];
+
+function facLevelFromRecord(record) {
+  const text = String(record?.class || record?.class_name || '').toLowerCase();
+  if (!text.includes('feline athletes club')) return null;
+  if (/\bchampion\b/.test(text)) return 'champion';
+  if (/\bmaster\b/.test(text)) return 'master';
+  if (/\bexcellent\b/.test(text)) return 'excellent';
+  if (/\badvanced?\b/.test(text)) return 'advanced';
+  if (/\bathlete\b/.test(text)) return 'athlete';
+  if (/\bnovice\b/.test(text)) return 'novice';
+  return null;
+}
+
+function calculateFelineAthletesTitle(records, animal) {
+  if (String(animal?.species || '').toLowerCase() !== 'cat') return null;
+  const counts = {};
+  FAC_LEVEL_RULES.forEach(level => {
+    counts[level.key] = Object.fromEntries(FAC_SPORT_KEYS.map(sport => [sport, 0]));
+  });
+  (records || []).forEach(record => {
+    if (String(record?.association_key || '').toLowerCase() !== 'feline_athletes_club') return;
+    const level = facLevelFromRecord(record);
+    const sport = String(record?.activity_key || record?.association_event_type || '').toLowerCase();
+    if (!level || !FAC_SPORT_KEYS.includes(sport)) return;
+    const placement = parseInt(String(record?.placement || ''), 10);
+    const qualified = record?.passed === true || /fac qualification/i.test(String(record?.score_label || ''));
+    if (!qualified || !(placement >= 1 && placement <= 5)) return;
+    counts[level][sport] += 1;
+  });
+  let earned = null;
+  FAC_LEVEL_RULES.forEach(level => {
+    if (FAC_SPORT_KEYS.every(sport => counts[level.key][sport] >= level.required)) earned = level;
+  });
+  return earned ? {...earned, counts} : null;
+}
+
 function calculateTitleData(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules) {
   const prefixBestInShowTitles = [];
   const prefixSpecialtyBestInShowTitles = [];
@@ -3355,7 +3377,7 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
   const awardTitleRows = [];
 
   const conformationRecords = records.filter(r => canonicalShowType(r.show_type) === "conformation");
-  const activityRecords = records.filter(r => canonicalShowType(r.show_type) === "activity" && !isManualScoreRecord(r) && !isBestInFieldActivityRecord(r) && !isSpanielChallengeRecord(r));
+  const activityRecords = records.filter(r => canonicalShowType(r.show_type) === "activity" && !isManualScoreRecord(r) && !isBestInFieldActivityRecord(r));
 
   const conformationPoints = conformationRecords.reduce((sum, r) => sum + pointsValue(r), 0);
   const confRules = titleRules.filter(r => normalizeKey(r.applies_to) === "conformation");
@@ -3663,16 +3685,31 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
     });
   }
 
-  const prefixTitles = prefixTitlesBase;
+  const felineAthletesTitle = calculateFelineAthletesTitle(records, animal);
+  if (felineAthletesTitle) {
+    awardTitleRows.push({
+      titleName: felineAthletesTitle.name,
+      titleCode: felineAthletesTitle.code,
+      count: 'Earned',
+      sort: 305
+    });
+  }
+
+  const prefixTitles = uniqueTitleList([
+    ...prefixTitlesBase,
+    ...(felineAthletesTitle?.position === 'prefix' ? [felineAthletesTitle.code] : [])
+  ]);
   const suffixTitles = uniqueTitleList([
     ...suffixTitlesBase,
-    ...(versatilityTitle ? [versatilityTitle.code] : [])
+    ...(versatilityTitle ? [versatilityTitle.code] : []),
+    ...(felineAthletesTitle?.position === 'suffix' ? [felineAthletesTitle.code] : [])
   ]);
 
   return {
     prefixTitles,
     suffixTitles,
     versatilityTitle,
+    felineAthletesTitle,
     versatilitySourceCodes,
     awardTitleRows
   };
@@ -3738,8 +3775,7 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
   const activityRecords = records.filter(r =>
     canonicalShowType(r.show_type) === "activity" &&
     !isManualScoreRecord(r) &&
-    !isBestInFieldActivityRecord(r) &&
-    !isSpanielChallengeRecord(r)
+    !isBestInFieldActivityRecord(r)
   );
   const activityTotals = calculateActivityTotals(activityRecords, activityTypes, animal);
 
@@ -3848,12 +3884,8 @@ function versatilityCategoryNames(species) {
     7:"Tracking & Search and Rescue"
   };
   if (s === "cat") return {
-    1:"Conformation & Performance",
-    2:"Training & Partnership",
-    3:"Agility & Movement",
-    4:"Jumping & Balance",
-    5:"Hunting & Retrieval",
-    6:"Problem Solving & Games"
+    1:"Conformation & Trick", 2:"Agility, Obedience & Rally",
+    3:"Fishing, Retrieving & Scent", 4:"Stunt, Vaulting, Treibball & High Jump"
   };
   if (s === "horse") return {
     1:"Conformation, Trick & Testing", 2:"Dressage Sports", 3:"Driving Sports",
@@ -4504,66 +4536,14 @@ function isSpanielClubRecord(record) {
   return association === "spaniel club" || association === "spaniel_club" || text.includes("spaniel club");
 }
 
-// =========================================================
-// SPANIEL CLUB — BREED DIVISIONS
-// Registered breed is authoritative; saved division is fallback.
-// =========================================================
-
-const SPANIEL_COMPANION_BREEDS = new Set([
-  "cavalier king charles spaniel",
-  "english toy spaniel",
-  "markiesje",
-  "papillon",
-  "phalene"
-]);
-
-const SPANIEL_HUNTING_BREEDS = new Set([
-  "american cocker spaniel",
-  "american water spaniel",
-  "blue picardy spaniel",
-  "boykin spaniel",
-  "clumber spaniel",
-  "drentse patrijshond",
-  "english cocker spaniel",
-  "english springer spaniel",
-  "field spaniel",
-  "french spaniel",
-  "german spaniel",
-  "irish water spaniel",
-  "kooikerhondje",
-  "picardy spaniel",
-  "pont-audemer spaniel",
-  "russian spaniel",
-  "stabyhoun",
-  "sussex spaniel",
-  "welsh springer spaniel"
-]);
-
-function spanielBreedKey(value) {
-  return normalizeKey(value)
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-}
-
-function spanielDivisionFromBreed(animal) {
-  const breed = spanielBreedKey(animal?.breed);
-  if (SPANIEL_COMPANION_BREEDS.has(breed)) return "companion";
-  if (SPANIEL_HUNTING_BREEDS.has(breed)) return "hunting";
-  return "unknown";
-}
-
 function spanielDivision(records, animal) {
-  const breedDivision = spanielDivisionFromBreed(animal);
-  if (breedDivision !== "unknown") return breedDivision;
-
   const explicit = (records || []).map(r =>
     normalizeKey(r?.spaniel_division || r?.association_division || r?.division)
   ).find(Boolean);
 
   if (explicit) {
     if (explicit.includes("companion")) return "companion";
-    if (explicit.includes("hunting") || explicit.includes("working")) return "hunting";
+    if (explicit.includes("hunting")) return "hunting";
   }
 
   const animalText = normalizeKey([
@@ -4571,21 +4551,16 @@ function spanielDivision(records, animal) {
     animal?.breed_group,
     animal?.group
   ].filter(Boolean).join(" "));
-
   if (animalText.includes("companion")) return "companion";
-  if (animalText.includes("hunting") || animalText.includes("working")) return "hunting";
+  if (animalText.includes("hunting")) return "hunting";
 
+  // Last-resort inference is only used when the upload contains one side of the
+  // club split but no explicit division metadata.
   const activityKeys = (records || []).map(spanielActivityFamily).filter(Boolean);
-  const hasHuntingSide = activityKeys.some(k =>
-    k === "hunting" || k === "retrieving" || k === "falconry"
-  );
-  const hasCompanionSide = activityKeys.some(k =>
-    k === "tracking" || k === "scent work"
-  );
-
+  const hasHuntingSide = activityKeys.some(k => k === "hunting" || k === "retrieving" || k === "falconry");
+  const hasCompanionSide = activityKeys.some(k => k === "tracking" || k === "scent work");
   if (hasHuntingSide && !hasCompanionSide) return "hunting";
   if (hasCompanionSide && !hasHuntingSide) return "companion";
-
   return "unknown";
 }
 
@@ -4690,8 +4665,8 @@ function calculateSpanielClubTitles(records, animal) {
   const challengeQs = uniqueSpanielCount(clubRecords, isSpanielChallengeQualification, "challenge");
 
   const primaryFamilies = division === "companion"
-    ? ["tracking", "scent work"]
-    : ["hunting", "retrieving"];
+    ? ["tracking", "scent work", "shed dog"]
+    : ["hunting", "retrieving", "falconry", "shed dog"];
 
   const qualifyingActivityRecords = clubRecords.filter(r =>
     canonicalShowType(r?.show_type) === "activity" &&
@@ -4709,30 +4684,9 @@ function calculateSpanielClubTitles(records, animal) {
 
   const secondaryFamilies = [...new Set(secondaryQualifiers.map(spanielActivityFamily).filter(Boolean))];
 
-  // CSp requires a WIN in the Complete Spaniel Challenge.
-  const completeChallengeWins = uniqueSpanielCount(
-    clubRecords,
-    r => {
-      if (!isSpanielChallengeRecord(r)) return false;
-      const text = spanielClubText(r);
-      const isCompleteChallenge = text.includes("complete spaniel challenge");
-      const placement = normalizeKey(r?.placement);
-      const isWin =
-        placement === "1" ||
-        placement === "1st" ||
-        placement.startsWith("1st ") ||
-        placement.includes("1st place") ||
-        placement.includes("first place") ||
-        placement === "winner" ||
-        placement === "win";
-      return isCompleteChallenge && isWin;
-    },
-    "complete-spaniel-challenge-win"
-  );
-
   const dpsEarned = division !== "unknown" && bobCount >= 1 && primaryCount >= 1 && challengeQs >= 2;
   const vtsEarned = division !== "unknown" && bobCount >= 3 && primaryCount >= 3 && secondaryFamilies.length >= 1 && challengeQs >= 3;
-  const cspEarned = dpsEarned && vtsEarned && bisCount >= 1 && completeChallengeWins >= 1;
+  const cspEarned = dpsEarned && vtsEarned && bisCount >= 1;
 
   const prefixes = [];
   const suffixes = [];
@@ -4781,37 +4735,13 @@ function calculateSpanielClubTitles(records, animal) {
       dpsEarned,
       vtsEarned,
       cspEarned,
-      completeChallengeWins,
       primaryFamilies
     }
   };
 }
 
-function spanielProgressRow(done, label, value) {
-  return `
-    <div class="spaniel-progress-row ${done ? "complete" : ""}">
-      <span class="spaniel-progress-icon" aria-hidden="true">${done ? "✓" : "○"}</span>
-      <span class="spaniel-progress-label">${escapeHtml(label)}</span>
-      <strong class="spaniel-progress-value">${escapeHtml(value)}</strong>
-    </div>
-  `;
-}
-
-function spanielTitleCard(code, title, earned, rows) {
-  return `
-    <div class="spaniel-title-card ${earned ? "earned" : ""}">
-      <div class="spaniel-title-head">
-        <span class="spaniel-title-code">${escapeHtml(code)}</span>
-        <div>
-          <h4>${escapeHtml(title)}</h4>
-          <small>${earned ? "Title earned" : "Title progress"}</small>
-        </div>
-      </div>
-      <div class="spaniel-progress-list">
-        ${rows.join("")}
-      </div>
-    </div>
-  `;
+function spanielCheck(done, text) {
+  return `<div class="club-progress-item ${done ? "complete" : ""}"><strong>${done ? "✓" : "○"}</strong> ${escapeHtml(text)}</div>`;
 }
 
 function renderSpanielClubProgress(records, animal) {
@@ -4820,62 +4750,34 @@ function renderSpanielClubProgress(records, animal) {
   if (!p) return `<div class="empty">No Spaniel Club title progress yet.</div>`;
 
   if (data.division === "unknown") {
-    return `<div class="empty">Spaniel division could not be determined from this dog's registered breed. Check that the registry breed name matches a Companion Spaniel or Hunting Spaniel breed in the Spaniel Club list.</div>`;
+    return `<div class="empty">Spaniel division could not be determined. Save <strong>Hunting Spaniel</strong> or <strong>Companion Spaniel</strong> on the club upload/record so DpS and VtS can be calculated safely.</div>`;
   }
 
   const primaryLabel = data.division === "companion"
-    ? "Tracking / Scent Work"
-    : "Hunting / Retrieving";
-
-  const dpsRows = [
-    spanielProgressRow(p.bobCount >= 1, "Best of Breed", `${p.bobCount} / 1`),
-    spanielProgressRow(
-      p.primaryCount >= 1,
-      `${primaryLabel} placement · 1st–3rd, 6+ dogs`,
-      `${p.primaryCount} / 1`
-    ),
-    spanielProgressRow(
-      p.challengeQs >= 2,
-      "Different Challenge Classes",
-      `${p.challengeQs} / 2`
-    )
-  ];
-
-  const vtsRows = [
-    spanielProgressRow(p.bobCount >= 3, "Best of Breed", `${p.bobCount} / 3`),
-    spanielProgressRow(
-      p.primaryCount >= 3,
-      `${primaryLabel} placements · 1st–3rd, 6+ dogs`,
-      `${p.primaryCount} / 3`
-    ),
-    spanielProgressRow(
-      p.secondaryFamilies.length >= 1,
-      "Other recognized activity placement",
-      `${p.secondaryFamilies.length} / 1`
-    ),
-    spanielProgressRow(
-      p.challengeQs >= 3,
-      "Different Challenge Classes",
-      `${p.challengeQs} / 3`
-    )
-  ];
-
-  const cspRows = [
-    spanielProgressRow(p.dpsEarned, "Dual Purpose Spaniel (DpS)", p.dpsEarned ? "Earned" : "Needed"),
-    spanielProgressRow(p.vtsEarned, "Versatile Spaniel (VtS)", p.vtsEarned ? "Earned" : "Needed"),
-    spanielProgressRow(p.bisCount >= 1, "Spaniel Club Best in Show", `${p.bisCount} / 1`),
-    spanielProgressRow(
-      p.completeChallengeWins >= 1,
-      "Complete Spaniel Challenge win",
-      `${p.completeChallengeWins} / 1`
-    )
-  ];
+    ? "Tracking / Scent Work / Shed Dog"
+    : "Hunting / Retrieving / Falconry / Shed Dog";
 
   return `
-    <div class="spaniel-title-grid">
-      ${spanielTitleCard("DpS", "Dual Purpose Spaniel", p.dpsEarned, dpsRows)}
-      ${spanielTitleCard("VtS", "Versatile Spaniel", p.vtsEarned, vtsRows)}
-      ${spanielTitleCard("CSp", "Complete Spaniel", p.cspEarned, cspRows)}
+    <div class="club-progress-grid">
+      <div class="club-progress-card">
+        <h4>Dual Purpose Spaniel (DpS)</h4>
+        ${spanielCheck(p.bobCount >= 1, `Best of Breed: ${p.bobCount}/1`)}
+        ${spanielCheck(p.primaryCount >= 1, `${primaryLabel} placements (1st-3rd, 6+ dogs): ${p.primaryCount}/1`)}
+        ${spanielCheck(p.challengeQs >= 2, `Challenge Class qualifications: ${p.challengeQs}/2`)}
+      </div>
+      <div class="club-progress-card">
+        <h4>Versatile Spaniel (VtS)</h4>
+        ${spanielCheck(p.bobCount >= 3, `Best of Breed: ${p.bobCount}/3`)}
+        ${spanielCheck(p.primaryCount >= 3, `${primaryLabel} placements (1st-3rd, 6+ dogs): ${p.primaryCount}/3`)}
+        ${spanielCheck(p.secondaryFamilies.length >= 1, `Other offered activity placement: ${p.secondaryFamilies.length}/1`)}
+        ${spanielCheck(p.challengeQs >= 3, `Challenge Class qualifications: ${p.challengeQs}/3`)}
+      </div>
+      <div class="club-progress-card">
+        <h4>Complete Spaniel (CSp)</h4>
+        ${spanielCheck(p.dpsEarned, `Dual Purpose Spaniel (DpS): ${p.dpsEarned ? "Earned" : "Not yet earned"}`)}
+        ${spanielCheck(p.vtsEarned, `Versatile Spaniel (VtS): ${p.vtsEarned ? "Earned" : "Not yet earned"}`)}
+        ${spanielCheck(p.bisCount >= 1, `Spaniel Club Best in Show: ${p.bisCount}/1`)}
+      </div>
     </div>
   `;
 }
@@ -4904,102 +4806,8 @@ function renderSpanielChallengeTable(records) {
   `;
 }
 
-const FAC_SHOW_SPORTS = [
-  ['feline_agility','Feline Agility'],
-  ['timed_sprint','Timed Sprint'],
-  ['high_jump','High Jump'],
-  ['long_jump','Long Jump'],
-  ['equilibrium','Equilibrium'],
-  ['tower_climb','Tower Climb'],
-  ['escape_cat','Escape Cat']
-];
-const FAC_SHOW_LEVELS = [
-  {key:'novice',label:'Novice',code:'AthN',required:2},
-  {key:'athlete',label:'Athlete',code:'Ath',required:3},
-  {key:'advanced',label:'Advanced',code:'AthA',required:4},
-  {key:'excellent',label:'Excellent',code:'AthX',required:5},
-  {key:'master',label:'Master',code:'MAth',required:6},
-  {key:'champion',label:'Champion',code:'AthCh.',required:7}
-];
-function isFelineAthletesRecord(r){ return normalizeKey(r?.association_key)==='feline athletes club'; }
-function facRecordLevel(r){
-  const t=normalizeKey(r?.class || r?.class_name || '');
-  if(t.includes('champion')) return 'champion';
-  if(t.includes('master')) return 'master';
-  if(t.includes('excellent')) return 'excellent';
-  if(t.includes('advanced') || t.includes('advance')) return 'advanced';
-  if(t.includes('athlete')) return 'athlete';
-  if(t.includes('novice')) return 'novice';
-  return null;
-}
-function facQualification(r){
-  const p=parseInt(String(r?.placement||''),10);
-  return p>=1 && p<=5 && (r?.passed===true || /fac qualification/i.test(String(r?.score_label||'')));
-}
-function felineAthletesProgress(records){
-  const club=(records||[]).filter(isFelineAthletesRecord);
-  const counts={};
-  FAC_SHOW_LEVELS.forEach(level=>counts[level.key]=Object.fromEntries(FAC_SHOW_SPORTS.map(([key])=>[key,0])));
-  club.forEach(r=>{
-    const level=facRecordLevel(r);
-    const sport=String(r?.activity_key || r?.association_event_type || '').toLowerCase();
-    if(level && counts[level] && Object.prototype.hasOwnProperty.call(counts[level],sport) && facQualification(r)) counts[level][sport]++;
-  });
-  let highest=null;
-  FAC_SHOW_LEVELS.forEach(level=>{
-    if(FAC_SHOW_SPORTS.every(([sport])=>counts[level.key][sport]>=level.required)) highest=level;
-  });
-  const nextIndex=highest ? Math.min(FAC_SHOW_LEVELS.length-1,FAC_SHOW_LEVELS.findIndex(x=>x.key===highest.key)+1) : 0;
-  return {club,counts,highest,current:FAC_SHOW_LEVELS[nextIndex]};
-}
-function renderFelineAthletesProgress(records){
-  const p=felineAthletesProgress(records);
-  const level=p.current;
-  const complete=p.highest?.key==='champion';
-  const displayLevel=complete ? FAC_SHOW_LEVELS[FAC_SHOW_LEVELS.length-1] : level;
-  const counts=p.counts[displayLevel.key];
-  return `
-    <div class="club-summary-grid">
-      <div class="mini-stat"><span>Highest Athlete Title</span><strong>${escapeHtml(p.highest?.code || '—')}</strong></div>
-      <div class="mini-stat"><span>${complete?'Champion':'Competing Level'}</span><strong>${escapeHtml(displayLevel.label)}</strong></div>
-      <div class="mini-stat"><span>Required per Sport</span><strong>${displayLevel.required}</strong></div>
-    </div>
-    <div class="table-wrap"><table class="records-table" id="fac-progress-table">
-      <thead><tr><th>Sport</th><th>${escapeHtml(displayLevel.label)} Qualifications</th><th>Status</th></tr></thead>
-      <tbody>${FAC_SHOW_SPORTS.map(([sport,label])=>{
-        const n=counts[sport]||0; const done=n>=displayLevel.required;
-        return `<tr><td>${escapeHtml(label)}</td><td>${n} / ${displayLevel.required}</td><td>${done?'✓ Complete':'In Progress'}</td></tr>`;
-      }).join('')}</tbody>
-    </table></div>`;
-}
-function renderFelineAthletesRecords(records){
-  const rows=(records||[]).filter(isFelineAthletesRecord);
-  if(!rows.length) return `<div class="empty">No Feline Athletes Club records yet.</div>`;
-  return `<div class="table-wrap"><table class="records-table" id="club-records-feline-athletes">
-    <thead><tr><th>Date</th><th>Show</th><th>Sport</th><th>Level</th><th>Placement</th><th>SS Points</th><th>FAC Q</th></tr></thead>
-    <tbody>${rows.map(r=>{
-      const sport=FAC_SHOW_SPORTS.find(([key])=>key===String(r?.activity_key||r?.association_event_type||'').toLowerCase());
-      const level=FAC_SHOW_LEVELS.find(x=>x.key===facRecordLevel(r));
-      return `<tr><td>${escapeHtml(r.event_date||'')}</td><td>${escapeHtml(r.show_name||'')}</td><td>${escapeHtml(sport?.[1]||r.activity_key||'')}</td><td>${escapeHtml(level?.label||'')}</td><td>${escapeHtml(r.placement||'')}</td><td>${escapeHtml(pointsValue(r))}</td><td>${facQualification(r)?'Q':'—'}</td></tr>`;
-    }).join('')}</tbody></table></div>`;
-}
-
 function getClubPanels(records, animal, herdingRules) {
   const panels = [];
-
-  const felineAthletesRecords = records.filter(isFelineAthletesRecord);
-  if (felineAthletesRecords.length) {
-    panels.push({
-      key:'feline-athletes', label:'Feline Athletes Club',
-      html:`<section class="panel">
-        <h3 class="panel-title">Feline Athletes Club</h3>
-        <h4 class="subsection-title">Athlete Title Progress</h4>
-        ${renderFelineAthletesProgress(records)}
-        <h4 class="subsection-title">Club Records</h4>
-        ${renderFelineAthletesRecords(felineAthletesRecords)}
-      </section>`
-    });
-  }
 
   const spanielRecords = records.filter(isSpanielClubRecord);
   if (spanielRecords.length) {
@@ -5009,30 +4817,11 @@ function getClubPanels(records, animal, herdingRules) {
       key:"spaniel", label:"Spaniel Club",
       html:`<section class="panel">
         <h3 class="panel-title">Spaniel Club</h3>
-              <div class="club-summary-grid">
-          <div class="mini-stat">
-            <span>Division</span>
-            <strong>${escapeHtml(
-              data.division === "unknown"
-                ? "—"
-                : (data.division === "companion" ? "Companion Spaniel" : "Hunting Spaniel")
-            )}</strong>
-          </div>
-
-          <div class="mini-stat">
-            <span>Best of Breed Wins</span>
-            <strong>${data.progress?.bobCount || 0}</strong>
-          </div>
-
-          <div class="mini-stat">
-            <span>Best in Show Wins</span>
-            <strong>${data.progress?.bisCount || 0}</strong>
-          </div>
-
-          <div class="mini-stat">
-            <span>Challenge Qualifications</span>
-            <strong>${data.progress?.challengeQs || 0}</strong>
-          </div>
+        <div class="summary-grid">
+          <div class="summary-card"><strong>${escapeHtml(data.division === "unknown" ? "—" : (data.division === "companion" ? "Companion" : "Hunting"))}</strong>Division</div>
+          <div class="summary-card"><strong>${data.progress?.bobCount || 0}</strong>Best of Breed Wins</div>
+          <div class="summary-card"><strong>${data.progress?.bisCount || 0}</strong>Best in Show Wins</div>
+          <div class="summary-card"><strong>${data.progress?.challengeQs || 0}</strong>Challenge Qualifications</div>
         </div>
         <h4 class="subsection-title">Title Progress</h4>
         ${renderSpanielClubProgress(records, animal)}
@@ -5161,417 +4950,64 @@ function collapseTeamActivityRecords(records) {
   return collapsed;
 }
 
-function renderRecords(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules) {
-  if (!window.ShowStandardTitleEngine) {
-    throw new Error("Shared title engine failed to load.");
-  }
 
-  const titleData = window.ShowStandardTitleEngine.calculateTitleData(
-    records,
-    animal,
+async function buildRegisteredNameShared(animal, records) {
+  const [
     titleRules,
     activityRules,
     activityTypes,
     totalRules,
     herdingRules
-  );
+  ] = await Promise.all([
+    getTableRows("title_rules"),
+    getTableRows("activity_title_rules"),
+    getTableRows("activity_types"),
+    getTableRows("total_award_activity_rules"),
+    getTableRows("herding_title_rules")
+  ]);
 
-  const registeredName = window.ShowStandardTitleEngine.buildNameFromTitleData(
+  if (animal?.id) {
+    try {
+      animal._breedingAwards = await loadBreedingAwardData(animal, titleRules);
+    } catch (error) {
+      console.warn("Shared title engine breeding awards warning:", error);
+    }
+  }
+
+  const titleData = calculateTitleData(
+    records || [],
     animal,
-    titleData
+    titleRules || [],
+    activityRules || [],
+    activityTypes || [],
+    totalRules || [],
+    herdingRules || []
   );
-  const pointRows = getPointBasedTitleRows(records, titleRules, activityRules, activityTypes, animal);
-  const clubs = getClubPanels(records, animal, herdingRules);
-  const conformation = records.filter(r => canonicalShowType(r.show_type) === "conformation");
-  const testingRecords = records.filter(isTestingCertificateRecord);
-  const activities = collapseTeamActivityRecords(records.filter(r =>
-    canonicalShowType(r.show_type) === "activity" &&
-    normalizeKey(r?.association_key) !== "hunting club" &&
-    !normalizeKey(r?.class).startsWith("hunting field test") &&
-    !isTestingCertificateRecord(r) &&
-    !isManualScoreRecord(r) &&
-    !isBestInFieldActivityRecord(r)
-  ));
 
-  const nav = [
-    {key:"overview", label:"Overview"},
-    {key:"conformation", label:"Conformation Records"},
-    {key:"activities", label:"Activity Records"},
-    ...(testingRecords.length ? [{key:"testing", label:"Testing & Certificates"}] : []),
-    {key:"versatility", label:"Versatility"},
-    ...clubs.map(c => ({key:`club-${c.key}`, label:c.label}))
-  ];
-
-  return `
-    <header class="animal-header">
-      <div class="full-name">${escapeHtml(registeredName)}</div>
-      <div class="animal-meta">${animalInfoLine(animal)}</div>
-    </header>
-
-    <section class="title-strip panel">
-      <h3 class="panel-title">Titles</h3>
-      <div class="registered-name">${escapeHtml(registeredName)}</div>
-    </section>
-
-    <nav class="main-tabs" aria-label="Show record sections">
-      ${nav.map((item,index) => `
-        <button type="button" class="main-tab ${index === 0 ? "active" : ""}" data-tab="${escapeHtml(item.key)}">${escapeHtml(item.label)}</button>
-      `).join("")}
-    </nav>
-
-    <div class="tab-panels">
-      <section class="tab-panel active" data-panel="overview">
-        <div class="overview-grid">
-          ${renderPointBasedTitles(pointRows)}
-          ${buildHighlights(records)}
-        </div>
-      </section>
-
-      <section class="tab-panel" data-panel="conformation">
-        <section class="panel">
-          <h3 class="panel-title">Conformation Records</h3>
-          ${renderRecordTable(conformation, "conformation-records-table")}
-        </section>
-      </section>
-
-      <section class="tab-panel" data-panel="activities">
-        <section class="panel">
-          <h3 class="panel-title">Activity Records</h3>
-          ${renderActivityRecordTable(activities, "activity-records-table", activityTypes)}
-        </section>
-      </section>
-
-      ${testingRecords.length ? `
-        <section class="tab-panel" data-panel="testing">
-          ${renderTestingCertificatesPanel(records, animal)}
-        </section>
-      ` : ""}
-
-      <section class="tab-panel" data-panel="versatility">
-        ${renderVersatilityPanel(animal, titleData)}
-      </section>
-
-      ${clubs.map(club => `
-        <section class="tab-panel" data-panel="club-${escapeHtml(club.key)}">${club.html}</section>
-      `).join("")}
-    </div>
-  `;
+  return {
+    registeredName: buildRegisteredName(animal, titleData),
+    titleData
+  };
 }
 
-function wireShowRecordTabs() {
-  document.querySelectorAll(".main-tabs").forEach(nav => {
-    nav.addEventListener("click", event => {
-      const button = event.target.closest(".main-tab");
-      if (!button) return;
-      const root = nav.parentElement;
-      nav.querySelectorAll(".main-tab").forEach(btn => btn.classList.toggle("active", btn === button));
-      root.querySelectorAll(".tab-panel").forEach(panel => {
-        panel.classList.toggle("active", panel.dataset.panel === button.dataset.tab);
-      });
-    });
-  });
+window.ShowStandardTitleEngine = Object.freeze({
+  buildRegisteredName: buildRegisteredNameShared,
 
-  document.querySelectorAll(".year-tabs").forEach(group => {
-    group.addEventListener("click", event => {
-      const button = event.target.closest(".year-tab");
-      if (!button) return;
-      group.querySelectorAll(".year-tab").forEach(btn => btn.classList.toggle("active", btn === button));
-      applyRecordFilters(document.getElementById(group.dataset.target));
-    });
-  });
-
-  document.querySelectorAll(".activity-tabs").forEach(group => {
-    group.addEventListener("click", event => {
-      const button = event.target.closest(".activity-tab");
-      if (!button) return;
-      group.querySelectorAll(".activity-tab").forEach(btn => btn.classList.toggle("active", btn === button));
-      applyRecordFilters(document.getElementById(group.dataset.target));
-    });
-  });
-}
-
-async function loadUploadMetadataForRecords(supabase, records) {
-  const uploadIds = [...new Set(
-    (records || [])
-      .map(record => record?.upload_id)
-      .filter(Boolean)
-      .map(String)
-  )];
-
-  if (!uploadIds.length) return new Map();
-
-  const map = new Map();
-  const chunkSize = 100;
-
-  for (let i = 0; i < uploadIds.length; i += chunkSize) {
-    const chunk = uploadIds.slice(i, i + chunkSize);
-
-    const { data, error } = await supabase
-      .from("show_uploads")
-      .select("id, show_name, series_name, series_round, created_at")
-      .in("id", chunk);
-
-    if (error) {
-      console.warn("Show upload metadata load error:", error.message);
-      continue;
-    }
-
-    (data || []).forEach(upload => map.set(String(upload.id), upload));
-  }
-
-  return map;
-}
-
-function sortRecordsByUploadAndSeries(records, uploadMap) {
-  const rows = (records || []).slice();
-
-  // Find the newest upload timestamp represented by each named series.
-  const seriesNewest = new Map();
-
-  rows.forEach(record => {
-    const upload = uploadMap.get(String(record?.upload_id || ""));
-    const series = String(upload?.series_name || '').replace(/\s+/g, ' ').trim();
-    if (!series) return;
-
-    const stamp = Date.parse(upload?.created_at || "") || 0;
-    const existing = seriesNewest.get(series) || 0;
-    if (stamp > existing) seriesNewest.set(series, stamp);
-  });
-
-  function info(record) {
-    const upload = uploadMap.get(String(record?.upload_id || ""));
-    const series = String(upload?.series_name || '').replace(/\s+/g, ' ').trim();
-    const uploadStamp =
-      Date.parse(upload?.created_at || "") ||
-      Date.parse(record?.event_date || "") ||
-      0;
-
-    return {
-      series,
-      groupKey: series ? "series::" + series : "upload::" + String(record?.upload_id || record?.show_name || ""),
-      groupStamp: series ? (seriesNewest.get(series) || uploadStamp) : uploadStamp,
-      uploadStamp,
-      round: Number.isFinite(Number(upload?.series_round)) ? Number(upload.series_round) : null,
-      showName: String(record?.show_name || upload?.show_name || "")
-    };
-  }
-
-  return rows.sort((a, b) => {
-    const ai = info(a);
-    const bi = info(b);
-
-    // Newest show/series block first.
-    if (bi.groupStamp !== ai.groupStamp) return bi.groupStamp - ai.groupStamp;
-
-    // Keep every member of the same series together.
-    if (ai.groupKey !== bi.groupKey) {
-      return ai.groupKey.localeCompare(bi.groupKey);
-    }
-
-    // Within a series, preserve upload order: newest uploaded show first.
-    if (bi.uploadStamp !== ai.uploadStamp) return bi.uploadStamp - ai.uploadStamp;
-
-    // If timestamps tie, use round (newest/highest round first) then show name.
-    if (ai.round !== bi.round) {
-      if (ai.round === null) return 1;
-      if (bi.round === null) return -1;
-      return bi.round - ai.round;
-    }
-
-    return ai.showName.localeCompare(bi.showName);
-  });
-}
-
-async function loadRecords() {
-  const animalRef = getAnimalNumber();
-  const supabase = getSupabase();
-  const content = document.getElementById("content");
-
-  try {
-    if (!supabase) {
-      content.innerHTML = `<div class="empty">Supabase is not loaded on this page.</div>`;
-      return;
-    }
-
-    if (!animalRef) {
-      content.innerHTML = `<div class="empty">Missing animal ID in the popup URL.</div>`;
-      return;
-    }
-
-    const animal = await getAnimal(animalRef);
-
-    if (!animal) {
-      content.innerHTML = `<div class="empty">Animal could not be found for this show records page.</div>`;
-      return;
-    }
-
-    const animalNumber = animal.animal_number;
-    const animalId = animal.id;
-
-    const pageSize = 1000;
-
-    async function fetchPagedRecords(filterType) {
-      let rowsOut = [];
-      let from = 0;
-      let to = pageSize - 1;
-
-      while (true) {
-        let query = supabase
-          .from("show_records")
-          .select("*")
-          .order("event_date", { ascending: false })
-          .range(from, to);
-
-        if (filterType === "animal_number" && animalNumber !== null && animalNumber !== undefined && animalNumber !== "") {
-          query = query.eq("animal_number", Number(animalNumber));
-        }
-
-        if (filterType === "animal_id" && animalId) {
-          query = query.eq("animal_id", animalId);
-        }
-
-        const { data: pageData, error } = await query;
-
-        if (error) {
-          throw error;
-        }
-
-        const rows = pageData || [];
-        rowsOut = rowsOut.concat(rows);
-
-        if (rows.length < pageSize) {
-          break;
-        }
-
-        from += pageSize;
-        to += pageSize;
-      }
-
-      return rowsOut;
-    }
-
-    let allRows = [];
-
-    if (animalNumber !== null && animalNumber !== undefined && animalNumber !== "") {
-      const numberRows = await fetchPagedRecords("animal_number");
-      allRows = allRows.concat(numberRows);
-    }
-
-    if (animalId) {
-      const idRows = await fetchPagedRecords("animal_id");
-      allRows = allRows.concat(idRows);
-    }
-
-    const seen = {};
-    allRows = allRows.filter(row => {
-      const key = String(row.id || `${row.show_name}-${row.class}-${row.placement}-${row.event_date}`);
-      if (seen[key]) return false;
-      seen[key] = true;
-      return true;
-    });
-
-
-    /*
-      Add synthetic Circuit Champion records from the database-wide season standings.
-      This lets the individual Show Records page award a circuit championship without
-      pretending one horse's own records can know everybody else's total.
-    */
-    if (animalId) {
-      const { data: championRows, error: championError } = await supabase
-        .from("endurance_circuit_champions")
-        .select("*")
-        .eq("animal_id", animalId);
-
-      if (!championError) {
-        const currentYear = new Date().getFullYear();
-
-        (championRows || []).forEach(row => {
-          const season = Number(row.season);
-
-          /*
-            ENDURANCE CLUB — CIRCUIT CHAMPIONS ARE YEAR-END AWARDS
-
-            The endurance_circuit_champions view can identify the CURRENT
-            standings leader during an active season. That is useful for
-            standings, but it must not become an earned Circuit Champion title
-            until that season has actually closed.
-
-            Only prior seasons are allowed to create synthetic champion rows
-            on an animal's Show Records page. Example: during 2026, a 2026
-            standings leader is NOT yet the 2026 Circuit Champion. The title
-            becomes eligible beginning in 2027.
-          */
-          if (!Number.isFinite(season) || season >= currentYear) return;
-
-          allRows.push({
-            id: `endurance-champion-${row.endurance_circuit}-${season}`,
-            animal_id: animalId,
-            show_name: `${row.endurance_circuit} ${season} Season`,
-            show_type: "activity",
-            show_scope: "association",
-            association_key: "endurance_club",
-            association_event_type: "circuit_champion",
-            activity_key: null,
-            class: "Endurance Club Circuit Champion",
-            placement: "Circuit Champion",
-            // Synthetic title marker only: circuit points already exist on the real race records.
-            // Never add them again to popup/activity totals.
-            points: 0,
-            calculated_points: 0,
-            endurance_circuit_points: Number(row.circuit_points || 0),
-            endurance_circuit: row.endurance_circuit,
-            endurance_season: season,
-            endurance_completed: false,
-            endurance_winnings: 0
-          });
-        });
-      }
-    }
-
-    // Order real show records by their parent upload, not event_date. This keeps
-    // newly uploaded shows at the top and keeps named series together.
-    const uploadMap = await loadUploadMetadataForRecords(supabase, allRows);
-    allRows = sortRecordsByUploadAndSeries(allRows, uploadMap);
-
-    const [titleRules, activityRules, activityTypes, totalRules, herdingRules] = await Promise.all([
-      getTableRows("title_rules"),
-      getTableRows("activity_title_rules"),
-      getTableRows("activity_types"),
-      getTableRows("total_award_activity_rules"),
-      getTableRows("herding_title_rules")
-    ]);
-
-    // ROM / ROMX / SprROM / SprROMX depend on offspring conformation achievement.
-    // Load the canonical conformation rules first, then calculate breeding awards
-    // from those live CH. / SprWCH. thresholds.
-    animal._breedingAwards = await loadBreedingAwardData(animal, titleRules);
-
-    content.innerHTML = renderRecords(
-      allRows || [],
+  calculateTitleData(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules) {
+    return calculateTitleData(
+      records || [],
       animal,
-      titleRules,
-      activityRules,
-      activityTypes,
-      totalRules,
-      herdingRules
+      titleRules || [],
+      activityRules || [],
+      activityTypes || [],
+      totalRules || [],
+      herdingRules || []
     );
+  },
 
-    wireShowRecordTabs();
-
-  } catch (err) {
-    console.error(err);
-    content.innerHTML = `<div class="empty">JavaScript error: ${err.message}</div>`;
+  buildNameFromTitleData(animal, titleData) {
+    return buildRegisteredName(animal, titleData);
   }
-}
+});
 
-function bootShowRecords() {
-  if (window.__showRecordsBooted) return;
-  window.__showRecordsBooted = true;
-  loadRecords();
-}
-
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", bootShowRecords, { once: true });
-} else {
-  bootShowRecords();
-}
+})();
