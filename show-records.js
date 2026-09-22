@@ -4904,8 +4904,102 @@ function renderSpanielChallengeTable(records) {
   `;
 }
 
+const FAC_SHOW_SPORTS = [
+  ['feline_agility','Feline Agility'],
+  ['timed_sprint','Timed Sprint'],
+  ['high_jump','High Jump'],
+  ['long_jump','Long Jump'],
+  ['equilibrium','Equilibrium'],
+  ['tower_climb','Tower Climb'],
+  ['escape_cat','Escape Cat']
+];
+const FAC_SHOW_LEVELS = [
+  {key:'novice',label:'Novice',code:'AthN',required:2},
+  {key:'athlete',label:'Athlete',code:'Ath',required:3},
+  {key:'advanced',label:'Advanced',code:'AthA',required:4},
+  {key:'excellent',label:'Excellent',code:'AthX',required:5},
+  {key:'master',label:'Master',code:'MAth',required:6},
+  {key:'champion',label:'Champion',code:'AthCh.',required:7}
+];
+function isFelineAthletesRecord(r){ return normalizeKey(r?.association_key)==='feline athletes club'; }
+function facRecordLevel(r){
+  const t=normalizeKey(r?.class || r?.class_name || '');
+  if(t.includes('champion')) return 'champion';
+  if(t.includes('master')) return 'master';
+  if(t.includes('excellent')) return 'excellent';
+  if(t.includes('advanced') || t.includes('advance')) return 'advanced';
+  if(t.includes('athlete')) return 'athlete';
+  if(t.includes('novice')) return 'novice';
+  return null;
+}
+function facQualification(r){
+  const p=parseInt(String(r?.placement||''),10);
+  return p>=1 && p<=5 && (r?.passed===true || /fac qualification/i.test(String(r?.score_label||'')));
+}
+function felineAthletesProgress(records){
+  const club=(records||[]).filter(isFelineAthletesRecord);
+  const counts={};
+  FAC_SHOW_LEVELS.forEach(level=>counts[level.key]=Object.fromEntries(FAC_SHOW_SPORTS.map(([key])=>[key,0])));
+  club.forEach(r=>{
+    const level=facRecordLevel(r);
+    const sport=String(r?.activity_key || r?.association_event_type || '').toLowerCase();
+    if(level && counts[level] && Object.prototype.hasOwnProperty.call(counts[level],sport) && facQualification(r)) counts[level][sport]++;
+  });
+  let highest=null;
+  FAC_SHOW_LEVELS.forEach(level=>{
+    if(FAC_SHOW_SPORTS.every(([sport])=>counts[level.key][sport]>=level.required)) highest=level;
+  });
+  const nextIndex=highest ? Math.min(FAC_SHOW_LEVELS.length-1,FAC_SHOW_LEVELS.findIndex(x=>x.key===highest.key)+1) : 0;
+  return {club,counts,highest,current:FAC_SHOW_LEVELS[nextIndex]};
+}
+function renderFelineAthletesProgress(records){
+  const p=felineAthletesProgress(records);
+  const level=p.current;
+  const complete=p.highest?.key==='champion';
+  const displayLevel=complete ? FAC_SHOW_LEVELS[FAC_SHOW_LEVELS.length-1] : level;
+  const counts=p.counts[displayLevel.key];
+  return `
+    <div class="club-summary-grid">
+      <div class="mini-stat"><span>Highest Athlete Title</span><strong>${escapeHtml(p.highest?.code || '—')}</strong></div>
+      <div class="mini-stat"><span>${complete?'Champion':'Competing Level'}</span><strong>${escapeHtml(displayLevel.label)}</strong></div>
+      <div class="mini-stat"><span>Required per Sport</span><strong>${displayLevel.required}</strong></div>
+    </div>
+    <div class="table-wrap"><table class="records-table" id="fac-progress-table">
+      <thead><tr><th>Sport</th><th>${escapeHtml(displayLevel.label)} Qualifications</th><th>Status</th></tr></thead>
+      <tbody>${FAC_SHOW_SPORTS.map(([sport,label])=>{
+        const n=counts[sport]||0; const done=n>=displayLevel.required;
+        return `<tr><td>${escapeHtml(label)}</td><td>${n} / ${displayLevel.required}</td><td>${done?'✓ Complete':'In Progress'}</td></tr>`;
+      }).join('')}</tbody>
+    </table></div>`;
+}
+function renderFelineAthletesRecords(records){
+  const rows=(records||[]).filter(isFelineAthletesRecord);
+  if(!rows.length) return `<div class="empty">No Feline Athletes Club records yet.</div>`;
+  return `<div class="table-wrap"><table class="records-table" id="club-records-feline-athletes">
+    <thead><tr><th>Date</th><th>Show</th><th>Sport</th><th>Level</th><th>Placement</th><th>SS Points</th><th>FAC Q</th></tr></thead>
+    <tbody>${rows.map(r=>{
+      const sport=FAC_SHOW_SPORTS.find(([key])=>key===String(r?.activity_key||r?.association_event_type||'').toLowerCase());
+      const level=FAC_SHOW_LEVELS.find(x=>x.key===facRecordLevel(r));
+      return `<tr><td>${escapeHtml(r.event_date||'')}</td><td>${escapeHtml(r.show_name||'')}</td><td>${escapeHtml(sport?.[1]||r.activity_key||'')}</td><td>${escapeHtml(level?.label||'')}</td><td>${escapeHtml(r.placement||'')}</td><td>${escapeHtml(pointsValue(r))}</td><td>${facQualification(r)?'Q':'—'}</td></tr>`;
+    }).join('')}</tbody></table></div>`;
+}
+
 function getClubPanels(records, animal, herdingRules) {
   const panels = [];
+
+  const felineAthletesRecords = records.filter(isFelineAthletesRecord);
+  if (felineAthletesRecords.length) {
+    panels.push({
+      key:'feline-athletes', label:'Feline Athletes Club',
+      html:`<section class="panel">
+        <h3 class="panel-title">Feline Athletes Club</h3>
+        <h4 class="subsection-title">Athlete Title Progress</h4>
+        ${renderFelineAthletesProgress(records)}
+        <h4 class="subsection-title">Club Records</h4>
+        ${renderFelineAthletesRecords(felineAthletesRecords)}
+      </section>`
+    });
+  }
 
   const spanielRecords = records.filter(isSpanielClubRecord);
   if (spanielRecords.length) {
