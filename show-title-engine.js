@@ -773,35 +773,59 @@ const VERSATILITY_CODES = {
 
   cat: makeVersatilityMap([
     [
-      ["Ch","GCh","NatCh","TAC","TT","TTC","NTD"],
-      ["IntCh","WCh","ITD"],
-      ["SprWCh","UniCh","ATD"],
-      ["HOF","ETD"],
-      ["HOL","TDCh"]
+      // Category 1 - Conformation & Performance
+      // Conformation + Feline Trick
+      ["Ch","GCh","NatCh","TAC","TT","TTC","NTD","NTC"],
+      ["IntCh","WCh","ITD","ITC"],
+      ["SprWCh","UniCh","ATD","ATC"],
+      ["HOF","ETD","ETC"],
+      ["HOL","TDCh","TCCh"]
     ],
     [
-      ["CAB","FON","FRN"],
-      ["CAAI","FOI","FRI"],
-      ["CAAII","FOA","FRA"],
-      ["CACh","FOE","FRE"],
-      ["CAGCh","FOCh","FRCh"]
+      // Category 2 - Training & Partnership
+      // Feline Obedience, Feline Rally, Object Discrimination, Target Work
+      ["FON","FRN","ODC","TWC"],
+      ["FOI","FRI","ODCA","TWCA"],
+      ["FOA","FRA","ODCE","TWCE"],
+      ["FOE","FRE","ODCM","TWCM"],
+      ["FOCh","FRCh","ChODC","ChTWC"]
     ],
     [
-      ["FFN","RCN","SDN"],
-      ["FFI","RCI","SDI"],
-      ["FFA","RCA","SDA"],
-      ["FFE","RCE","SDE"],
-      ["FFCh","RCCh","SDCh"]
+      // Category 3 - Agility & Movement
+      // Feline Agility, Timed Sprint, Feline Steeplechase, Feline Parkour
+      ["CAB","FSp","FSP","FPk"],
+      ["CAAI","AFSp","AFSP","AFPk"],
+      ["CAAII","XFSp","EFSP","EFPk"],
+      ["CACh","MFSp","MFSP","MFPk"],
+      ["CAGCh","ChSp.","ChFSP","ChFPk"]
     ],
     [
-      // Feline Treibball:
-      // Current database titles use FTB-*.
-      // Keep TB-* aliases for historical records, and include Grand Champion at Level E.
-      ["SC1","VN","FTB-B","FTBB","TB-B","TBB","HJN"],
-      ["SC2","VJ","FTB-I","FTBI","TB-I","TBI","HJI"],
-      ["SC3","VS","FTB-E","FTBE","TB-E","TBE","HJA"],
-      ["SC4","VM","FTB-Ch","FTBCh","TB-Ch","TBCh","HJE"],
-      ["SCCh","VE","FTB-GCh","FTBGCh","TB-GCh","TBGCh","HJCh"]
+      // Category 4 - Jumping & Balance
+      // High Jump, Long Jump, Feline Vaulting, Equilibrium, Tower Climb
+      ["HJN","FLJ","VN","FEq","FCl"],
+      ["HJI","AFLJ","VJ","AFEq","AFCl"],
+      ["HJA","XFLJ","VS","XFEq","XFCl"],
+      ["HJE","MFLJ","VM","MFEq","MFCl"],
+      ["HJCh","ChFlJ","VE","ChFEq","ChFCl"]
+    ],
+    [
+      // Category 5 - Hunting & Retrieval
+      // Fishing, Feline Retrieving, Lure Chase, Barn Search, Scent Detection
+      ["FFN","RCN","FLC","FBS","SDN"],
+      ["FFI","RCI","AFLC","AFBS","SDI"],
+      ["FFA","RCA","XFLC","EFBS","SDA"],
+      ["FFE","RCE","MFLC","MFBS","SDE"],
+      ["FFCh","RCCh","ChFLC","ChFBS","SDCh"]
+    ],
+    [
+      // Category 6 - Problem Solving & Games
+      // Escape Cat, Puzzle Challenge, Maze Race, Feline Treibball, Stunt Cat
+      // Keep TB-* aliases for historical Treibball records.
+      ["FEA","FPC","MRC","FTB-B","FTBB","TB-B","TBB","SC1"],
+      ["AFEA","AFPC","MRA","FTB-I","FTBI","TB-I","TBI","SC2"],
+      ["XFEA","EFPC","MRE","FTB-E","FTBE","TB-E","TBE","SC3"],
+      ["MFEA","MFPC","MRM","FTB-Ch","FTBCh","TB-Ch","TBCh","SC4"],
+      ["ChFEA","ChFPC","ChMR","FTB-GCh","FTBGCh","TB-GCh","TBGCh","SCCh"]
     ]
   ]),
 
