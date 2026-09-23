@@ -4652,8 +4652,32 @@ function isSpanielBIS(record) {
 
 function isSpanielChallengeRecord(record) {
   if (!isSpanielClubRecord(record)) return false;
-  const text = spanielClubText(record);
-  return text.includes("challenge class") || text.includes("challenge");
+
+  const eventType = normalizeKey(record?.association_event_type);
+  const classText = normalizeKey(record?.class);
+  const labelText = normalizeKey(record?.score_label);
+  const combined = `${classText} ${labelText}`.trim();
+
+  /*
+    IMPORTANT: conformation awards such as Male Challenge, Female Challenge,
+    Reserve Male Challenge and Reserve Female Challenge are NOT Spaniel Club
+    Challenge Classes. Those belong in Conformation Records.
+
+    Current Spaniel Club Challenge uploads are identified by the association
+    event type or by one of the actual named challenge classes below.
+  */
+  if (eventType === "challenge" || eventType === "challenges") return true;
+
+  return (
+    combined.includes("natural ability challenge") ||
+    combined.includes("spaniel nose challenge") ||
+    combined.includes("handler partnership challenge") ||
+    combined.includes("retrieve & carry challenge") ||
+    combined.includes("retrieve and carry challenge") ||
+    combined.includes("steadiness & control challenge") ||
+    combined.includes("steadiness and control challenge") ||
+    combined.includes("complete spaniel challenge")
+  );
 }
 
 function isSpanielChallengeQualification(record) {
@@ -5008,7 +5032,18 @@ function getClubPanels(records, animal, herdingRules) {
   const spanielRecords = records.filter(isSpanielClubRecord);
   if (spanielRecords.length) {
     const data = calculateSpanielClubTitles(records, animal);
-    const ordinarySpanielRecords = spanielRecords.filter(r => !isSpanielChallengeRecord(r));
+
+    // Display-only separation. Storage, points and title calculations are unchanged.
+    const spanielConformationRecords = spanielRecords.filter(r =>
+      !isSpanielChallengeRecord(r) &&
+      canonicalShowType(r?.show_type) === "conformation"
+    );
+
+    const spanielActivityRecords = spanielRecords.filter(r =>
+      !isSpanielChallengeRecord(r) &&
+      canonicalShowType(r?.show_type) === "activity"
+    );
+
     panels.push({
       key:"spaniel", label:"Spaniel Club",
       html:`<section class="panel">
@@ -5040,10 +5075,16 @@ function getClubPanels(records, animal, herdingRules) {
         </div>
         <h4 class="subsection-title">Title Progress</h4>
         ${renderSpanielClubProgress(records, animal)}
-        ${ordinarySpanielRecords.length ? `
-          <h4 class="subsection-title">Club Records</h4>
-          ${renderRecordTable(ordinarySpanielRecords, "club-records-spaniel")}
+        ${spanielConformationRecords.length ? `
+          <h4 class="subsection-title">Conformation Records</h4>
+          ${renderRecordTable(spanielConformationRecords, "club-records-spaniel-conformation")}
         ` : ""}
+
+        ${spanielActivityRecords.length ? `
+          <h4 class="subsection-title">Activity Records</h4>
+          ${renderRecordTable(spanielActivityRecords, "club-records-spaniel-activities")}
+        ` : ""}
+
         <h4 class="subsection-title">Challenge Classes</h4>
         ${renderSpanielChallengeTable(spanielRecords)}
       </section>`
