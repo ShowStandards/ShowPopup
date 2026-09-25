@@ -3262,10 +3262,13 @@ function calculateEnduranceClubTitles(records, animal) {
     sort:900
   });
 
-  const auditedProgress = getEnduranceTitleProgressData(records, animal);
-  prefixes.push(...auditedProgress.prefixes);
-  suffixes.push(...auditedProgress.suffixes);
-
+  /*
+    getEnduranceTitleProgressData() is for the progress/history panel. It can
+    legitimately contain both EdSIII and MEdSIII as earned milestones, so do
+    NOT merge its earned title codes back into the registered-name title stack.
+    The display stack above already calculates the single current stakes title
+    for each grade (EdS -> MEdS -> GChEdS).
+  */
   return {
     prefixes: uniqueTitleList(prefixes),
     suffixes: uniqueTitleList(suffixes),
