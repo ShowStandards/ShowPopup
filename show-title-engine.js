@@ -3624,7 +3624,7 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
     ...prefixManualTitles
   ]).filter(code => !isVersatilityTitleCode(code, animal?.species));
 
-  const suffixTitlesBase = uniqueTitleList([
+  let suffixTitlesBase = uniqueTitleList([
     ...orderedActivitySuffixes,
     ...suffixHerdingTitles,
     ...suffixManualTitles,
@@ -3633,6 +3633,26 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
     ...highestManualTitleBySort(suffixCgcTitles),
     ...suffixTherapyTemperamentTitles.sort((a, b) => manualTitleSort(a) - manualTitleSort(b))
   ]).filter(code => !isVersatilityTitleCode(code, animal?.species));
+
+  /*
+    Final Endurance Stakes display guard.
+    A superseded stakes code can enter the title stack from more than the
+    manual-title fields (including legacy activity/title data), so enforce the
+    progression on the fully assembled suffix list as well.
+    History/progress rows are not changed.
+  */
+  const currentStakesByGrade = {};
+  [...enduranceTitles.prefixes, ...enduranceTitles.suffixes].forEach(code => {
+    const grade = enduranceStakesFamily(code);
+    if (grade) currentStakesByGrade[grade] = String(code);
+  });
+
+  if (Object.keys(currentStakesByGrade).length) {
+    suffixTitlesBase = suffixTitlesBase.filter(code => {
+      const grade = enduranceStakesFamily(code);
+      return !grade || titleCodeKey(code) === titleCodeKey(currentStakesByGrade[grade]);
+    });
+  }
 
   /*
     This exact source list is also returned to the Versatility panel so the
