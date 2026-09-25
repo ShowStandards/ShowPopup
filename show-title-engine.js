@@ -2768,17 +2768,10 @@ function getEnduranceTitleProgressData(records, animal) {
 
 function highestEnduranceProgressRows(rows) {
   /*
-    Show ONE active row for each Endurance title ladder.
-
-    Behaviour:
-      - no title earned yet -> show the FIRST title in that ladder as In Progress
-      - a title is earned   -> show ONLY the HIGHEST earned title
-      - when the next tier is earned, it replaces the lower one
-
-    Example:
-      3,920 km -> EdDCh only
-      32,000 km -> EdDGCh replaces EdDCh
-      55,000 km -> EdDHoF replaces EdDGCh
+    Stakes title history is cumulative: once EdS is earned, keep that earned
+    row visible after MEdS/GChEdS is earned so the records panel preserves the
+    horse's title history. Other Endurance ladders (distance, earnings,
+    circuits, etc.) continue to show only their current/highest progression.
   */
 
   const ladderOrder = {
@@ -2807,6 +2800,20 @@ function highestEnduranceProgressRows(rows) {
 
   Object.entries(grouped).forEach(([categoryKey, group]) => {
     const codeOrder = ladderOrder[categoryKey];
+
+    // Stakes are historical milestones in this table. Show every earned
+    // stakes title, plus the next target only when no stakes title is earned.
+    if (/^grade (?:iii|ii|i) stakes$/.test(categoryKey)) {
+      const orderedStakes = group.slice().sort((a, b) => {
+        const ai = codeOrder ? codeOrder.indexOf(String(a?.code || "")) : -1;
+        const bi = codeOrder ? codeOrder.indexOf(String(b?.code || "")) : -1;
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
+      const earnedStakes = orderedStakes.filter(row => row?.earned === true);
+      if (earnedStakes.length) result.push(...earnedStakes);
+      else if (orderedStakes[0]) result.push(orderedStakes[0]);
+      return;
+    }
 
     let ordered;
 
