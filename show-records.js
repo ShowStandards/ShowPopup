@@ -3559,6 +3559,39 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
   icelandicTitles.prefixes.forEach(code => earnedTitleCodes.push(code));
 
   const enduranceTitles = calculateEnduranceClubTitles(records, animal);
+
+  /*
+    Endurance Stakes titles are progressive DISPLAY titles.
+    Historical/manual title fields may still contain an earlier EdS/MEdS code,
+    and those records must remain untouched for title history. Before building
+    the registered name, remove only stale manual Stakes display codes from a
+    grade where the live Endurance calculation has a current title.
+  */
+  const enduranceStakesFamily = code => {
+    const key = String(code || "").replace(/\./g, "").trim().toUpperCase();
+    if (/^(?:GCH)?(?:M)?EDSIII$/.test(key)) return "III";
+    if (/^(?:GCH)?(?:M)?EDSII$/.test(key)) return "II";
+    if (/^(?:GCH)?(?:M)?EDSI$/.test(key)) return "I";
+    return "";
+  };
+
+  const currentEnduranceStakesGrades = new Set(
+    [...enduranceTitles.prefixes, ...enduranceTitles.suffixes]
+      .map(enduranceStakesFamily)
+      .filter(Boolean)
+  );
+
+  if (currentEnduranceStakesGrades.size) {
+    for (let i = prefixManualTitles.length - 1; i >= 0; i--) {
+      const grade = enduranceStakesFamily(prefixManualTitles[i]);
+      if (grade && currentEnduranceStakesGrades.has(grade)) prefixManualTitles.splice(i, 1);
+    }
+    for (let i = suffixManualTitles.length - 1; i >= 0; i--) {
+      const grade = enduranceStakesFamily(suffixManualTitles[i]);
+      if (grade && currentEnduranceStakesGrades.has(grade)) suffixManualTitles.splice(i, 1);
+    }
+  }
+
   prefixManualTitles.push(...enduranceTitles.prefixes);
   suffixManualTitles.push(...enduranceTitles.suffixes);
   awardTitleRows.push(...enduranceTitles.rows);
