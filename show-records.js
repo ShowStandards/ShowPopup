@@ -2711,7 +2711,14 @@ function getEnduranceTitleProgressData(records, animal) {
   ].forEach(([grade,code,title,need,position], index) => {
     const current = winsByGrade[grade] || 0;
     if (current <= 0) return;
-    add({category:`Grade ${grade} Stakes`,title,code,requirement:`${need} win${need===1?'':'s'}`,current:`${current} win${current===1?'':'s'}`,earned:current>=need,position,sort:100+index});
+
+    // Stakes titles are progressive within each grade:
+    // MEdS replaces EdS once the second win is earned. The Grand Champion
+    // prefix is separate and may display alongside the highest suffix.
+    const isBaseStakesTitle = /^EdS(?:III|II|I)$/.test(code);
+    const earned = current >= need && !(isBaseStakesTitle && current >= 2);
+
+    add({category:`Grade ${grade} Stakes`,title,code,requirement:`${need} win${need===1?'':'s'}`,current:`${current} win${current===1?'':'s'}`,earned,position,sort:100+index});
   });
 
   const gradeIGrandCurrent = (winsByGrade.I || 0) + (winsByGrade.INV || 0);
