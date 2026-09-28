@@ -4788,9 +4788,18 @@ function calculateSpanielClubTitles(records, animal) {
   const bisCount = uniqueSpanielCount(clubRecords, isSpanielBIS, "bis");
   const challengeQs = uniqueSpanielCount(clubRecords, isSpanielChallengeQualification, "challenge");
 
+  // Spaniel Club activity sides are explicit. Shed Dog and Falconry are Working
+  // activities; Scent Work and Tracking are Companion activities.
+  const workingFamilies = ["hunting", "retrieving", "falconry", "shed dog"];
+  const companionFamilies = ["tracking", "scent work"];
+
   const primaryFamilies = division === "companion"
-    ? ["tracking", "scent work"]
-    : ["hunting", "retrieving"];
+    ? companionFamilies
+    : workingFamilies;
+
+  const secondaryFamiliesAllowed = division === "companion"
+    ? workingFamilies
+    : companionFamilies;
 
   const qualifyingActivityRecords = clubRecords.filter(r =>
     canonicalShowType(r?.show_type) === "activity" &&
@@ -4803,7 +4812,7 @@ function calculateSpanielClubTitles(records, animal) {
 
   const secondaryQualifiers = qualifyingActivityRecords.filter(r => {
     const family = spanielActivityFamily(r);
-    return family && !primaryFamilies.includes(family);
+    return family && secondaryFamiliesAllowed.includes(family);
   });
 
   const secondaryFamilies = [...new Set(secondaryQualifiers.map(spanielActivityFamily).filter(Boolean))];
