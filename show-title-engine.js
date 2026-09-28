@@ -4664,18 +4664,20 @@ function calculateSpanielClubTitles(records, animal) {
   const bisCount = uniqueSpanielCount(clubRecords, isSpanielBIS, "bis");
   const challengeQs = uniqueSpanielCount(clubRecords, isSpanielChallengeQualification, "challenge");
 
-  // Spaniel Club activity sides are explicit.
-  // Shed Dog and Falconry are Working; Tracking and Scent Work are Companion.
-  const workingFamilies = ["hunting", "retrieving", "falconry", "shed dog"];
-  const companionFamilies = ["tracking", "scent work"];
+  // Spaniel Club CLASS TYPE is independent of breed division.
+  // These six activities are Working Classes for every Spaniel.
+  // Any other offered Spaniel Club activity is a Companion Class.
+  const workingFamilies = [
+    "retrieving",
+    "falconry",
+    "hunting",
+    "scent work",
+    "shed dog",
+    "tracking"
+  ];
 
-  const primaryFamilies = division === "companion"
-    ? companionFamilies
-    : workingFamilies;
-
-  const secondaryFamiliesAllowed = division === "companion"
-    ? workingFamilies
-    : companionFamilies;
+  // DpS/VtS primary placements are Working Class placements for all Spaniels.
+  const primaryFamilies = workingFamilies;
 
   const qualifyingActivityRecords = clubRecords.filter(r =>
     canonicalShowType(r?.show_type) === "activity" &&
@@ -4688,7 +4690,9 @@ function calculateSpanielClubTitles(records, animal) {
 
   const secondaryQualifiers = qualifyingActivityRecords.filter(r => {
     const family = spanielActivityFamily(r);
-    return family && secondaryFamiliesAllowed.includes(family);
+    // Anything recognized by the Spaniel Club that is not one of the six
+    // Working activities is a Companion Class.
+    return family && !workingFamilies.includes(family);
   });
 
   const secondaryFamilies = [...new Set(secondaryQualifiers.map(spanielActivityFamily).filter(Boolean))];
@@ -4762,9 +4766,7 @@ function renderSpanielClubProgress(records, animal) {
     return `<div class="empty">Spaniel division could not be determined. Save <strong>Hunting Spaniel</strong> or <strong>Companion Spaniel</strong> on the club upload/record so DpS and VtS can be calculated safely.</div>`;
   }
 
-  const primaryLabel = data.division === "companion"
-    ? "Tracking / Scent Work"
-    : "Hunting / Retrieving / Falconry / Shed Dog";
+  const primaryLabel = "Working Class";
 
   return `
     <div class="club-progress-grid">
