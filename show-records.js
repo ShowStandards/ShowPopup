@@ -1544,6 +1544,9 @@ function canonicalActivityFamilyKey(value, animal) {
       "treibball": "feline treibball",
       "cat treibball": "feline treibball",
       "feline treibball": "feline treibball",
+      "vaulting": "feline vaulting",
+      "cat vaulting": "feline vaulting",
+      "feline vaulting": "feline vaulting",
       "trick": "feline trick",
       "cat trick": "feline trick",
       "feline trick": "feline trick"
