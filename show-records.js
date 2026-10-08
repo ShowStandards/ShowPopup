@@ -348,11 +348,18 @@ function isBestInFieldActivityRecord(record) {
   const className = normalizeKey(record?.class);
   const placement = normalizeKey(record?.placement);
 
+  // Only exclude the separate title-only BIF award from scored activity tables.
+  // A numbered Best in Field class placement is a real activity result and
+  // must remain visible and contribute its stored placement points.
+  const isFieldClass = className.includes("best in field") || className === "bif";
+  const isNumberedPlacement = /^\\d+$/.test(placement) ||
+    /^(1st|2nd|3rd|[4-9]th)(\\s|$)/.test(placement);
+
+  if (isFieldClass && isNumberedPlacement) return false;
+
   return (
-    className.includes("best in field") ||
+    isFieldClass ||
     placement.includes("best in field") ||
-    className === "bif" ||
-    className === "mbif" ||
     placement === "bif" ||
     placement === "mbif"
   );
