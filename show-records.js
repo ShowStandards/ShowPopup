@@ -2571,6 +2571,7 @@ const SS_HUNTING_TITLE_DEFS = {
   pack_hunting:{label:'Pack Hunting',code:'PH',specializations:{rabbit:['Rabbit','r'],hare:['Hare','h'],fox:['Fox','f'],coyote_jackal:['Coyote / Jackal','c'],boar:['Boar','b'],deer:['Deer','d']}},
   catch_dogs:{label:'Catch Dogs',code:'CD',specializations:{boar:['Boar','b'],cattle:['Cattle','c']}},
   tolling:{label:'Tolling',code:'Tl',specializations:{waterfowl:['Waterfowl','w']}},
+  otter_hunting:{label:'Otter Hunting',code:'Ot',specializations:{otter:['Otter','o']}},
   puffin_hunting:{label:'Puffin Hunting',code:'Pu',specializations:{puffin:['Puffin','p']}}
 };
 
