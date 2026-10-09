@@ -4178,8 +4178,13 @@ function activityFilterButtons(records, tableId, activityTypes) {
 
   (records || []).forEach(record => {
     const key = activityFilterKey(record, activityTypes);
-    if (!key || byKey.has(key)) return;
-    byKey.set(key, activityFilterLabel(record, activityTypes));
+    const label = activityFilterLabel(record, activityTypes);
+    // Legacy BIF entries remain in All Activities but are not separate sports.
+    const normalizedLabel = normalizeKey(label).replace(/[_-]+/g, ' ');
+    if (!key || byKey.has(key) ||
+        normalizedLabel === 'best in field' ||
+        normalizedLabel === 'canine hunting best in field') return;
+    byKey.set(key, label);
   });
 
   const entries = [...byKey.entries()].sort((a,b) => String(a[1]).localeCompare(String(b[1])));
