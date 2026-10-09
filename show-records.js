@@ -5057,6 +5057,14 @@ function facRecordLevel(r){
   if(/(?:^| - )(advanced|advance)(?: - |$)/.test(t)) return 'advanced';
   if(/(?:^| - )novice(?: - |$)/.test(t)) return 'novice';
   if(/(?:^| - )athlete(?: - |$)/.test(t)) return 'athlete';
+  // Grand-opening / legacy FAC divisions retain their original sport-specific
+  // class codes. They compete at Novice until an explicit Ath level is used.
+  const legacyCodes = new Set([
+    'cab','caai','caaii','cach','cagch','fsp','hjn','hji','hja','hjx',
+    'hjch','flj','feq','fcl','fea'
+  ]);
+  const parts = t.split(/\s+-\s+/).map(x => x.replace(/\.$/, '').trim());
+  if (parts.some(part => legacyCodes.has(part))) return 'novice';
   return null;
 }
 function facQualification(r){
