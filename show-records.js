@@ -2566,7 +2566,7 @@ function calculateHuntingClubTitles(records, animal) {
 
   const club = (records || []).filter(record =>
     normalizeKey(record?.association_key) === 'hunting club' &&
-    normalizeKey(record?.association_event_type) === 'field test'
+    normalizeKey(record?.association_event_type).replace(/[\s_-]+/g, ' ') === 'field test'
   );
 
   if (!club.length) return {suffixes:[],rows:[]};
