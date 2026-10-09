@@ -1475,6 +1475,27 @@ function resolveActivityForRecord(record, activityTypes) {
   */
   const storedActivityKey = activityBaseKey(record?.activity_key);
 
+  // BIF is a class within an activity, not an activity itself. Some older
+  // uploads stored synthetic BIF keys; prefer the sport embedded in the class.
+  const syntheticBifKeys = new Set(['best in field', 'canine hunting best in field']);
+  const classText = String(record?.class || '').trim();
+  const classPrefix = classText.match(/^(.+?)\s+-\s+best in field(?:\s|$)/i);
+  if (syntheticBifKeys.has(storedActivityKey) ||
+      (!storedActivityKey && /^best in field$/i.test(classText))) {
+    if (classPrefix) {
+      const parent = (activityTypes || []).find(a =>
+        activityBaseKey(a.activity_key) === activityBaseKey(classPrefix[1]) ||
+        activityBaseKey(a.display_name) === activityBaseKey(classPrefix[1])
+      );
+      return {
+        activity_key: parent?.activity_key || activityBaseKey(classPrefix[1]).replace(/ /g, '_'),
+        display_name: parent?.display_name || classPrefix[1]
+      };
+    }
+    // Unattributed historical BIF: retain the record, but don't invent a sport.
+    return { activity_key: 'other', display_name: 'Other' };
+  }
+
   if (storedActivityKey) {
     const storedActivity = (activityTypes || []).find(activity => {
       const key = activityBaseKey(activity?.activity_key);
@@ -4117,8 +4138,6 @@ function renderTestingCertificatesPanel(records, animal) {
 }
 
 function activityFilterKey(record, activityTypes) {
-  if (isBestInFieldActivityRecord(record)) return "";
-
   const activity = resolveActivityForRecord(record, activityTypes);
   const raw =
     activity?.display_name ||
@@ -4140,8 +4159,6 @@ function cleanActivityDisplayName(value) {
 }
 
 function activityFilterLabel(record, activityTypes) {
-  if (isBestInFieldActivityRecord(record)) return "";
-
   const activity = resolveActivityForRecord(record, activityTypes);
   const rawLabel =
     activity?.display_name ||
