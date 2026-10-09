@@ -3854,6 +3854,10 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
 
   Object.values(activityTotals).forEach(total => {
     const herdingText = normalizeKey(`${total.activity_key || ""} ${total.display_name || ""}`);
+    // Synthetic Best in Field buckets are not standalone activity titles.
+    const titleActivity = normalizeKey(total.display_name || total.activity_key).replace(/[_-]+/g, " ");
+    if (titleActivity === "best in field" ||
+        titleActivity === "canine hunting best in field") return;
     if (
       herdingText.includes("herding stakes") ||
       herdingText.includes("herding instinct") ||
