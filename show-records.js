@@ -2574,7 +2574,10 @@ function calculateHuntingClubTitles(records, animal) {
   const grouped = {};
 
   club.forEach(record => {
-    const family = normalizeKey(record?.hunting_family).replace(/\s+/g, "_");
+    const rawFamily = normalizeKey(record?.hunting_family).replace(/\s*\/\s*/g, " / ");
+    const family = ["scent / trailing", "scent trailing", "scent_trailing"].includes(rawFamily)
+      ? "trailing"
+      : rawFamily.replace(/[\s-]+/g, "_");
     const specialization = normalizeKey(record?.hunting_specialization).replace(/\s+/g, "_");
     const level = normalizeKey(record?.hunting_level);
 
