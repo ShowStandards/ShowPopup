@@ -1475,25 +1475,40 @@ function resolveActivityForRecord(record, activityTypes) {
   */
   const storedActivityKey = activityBaseKey(record?.activity_key);
 
-  // BIF is a class within an activity, not an activity itself. Some older
-  // uploads stored synthetic BIF keys; prefer the sport embedded in the class.
-  const syntheticBifKeys = new Set(['best in field', 'canine hunting best in field']);
+  // Normalize every historical Best in Field spelling in one place.
+  // Preserve the class and points; only resolve its parent activity.
   const classText = String(record?.class || '').trim();
-  const classPrefix = classText.match(/^(.+?)\s+-\s+best in field(?:\s|$)/i);
-  if (syntheticBifKeys.has(storedActivityKey) ||
-      (!storedActivityKey && /^best in field$/i.test(classText))) {
-    if (classPrefix) {
+  const isBifKey = /\bbest[\s_-]*in[\s_-]*field\b/i.test(String(record?.activity_key || ''));
+  const isBifClass = /\bbest[\s_-]*in[\s_-]*field\b/i.test(classText);
+  if (isBifKey || isBifClass) {
+    let parentName = classText
+      .replace(/\s*[-–—]\s*best\s+in\s+field\b.*$/i, '')
+      .replace(/\s+best\s+in\s+field\b.*$/i, '')
+      .trim();
+    if (/^best\s+in\s+field$/i.test(parentName)) parentName = '';
+    // A valid stored sport takes precedence over an ambiguous class label.
+    const storedIsSport = storedActivityKey && !isBifKey;
+    const sportName = storedIsSport ? record.activity_key : parentName;
+    if (sportName) {
+      const base = activityBaseKey(sportName);
+      const aliases = {
+        'canine tracking':'tracking', 'canine hunting':'hunting',
+        'canine barn hunt':'barn hunt', 'canine falconry':'falconry',
+        'canine lure coursing':'lure coursing', 'canine retrieving':'canine retrieving',
+        'retrieving':'canine retrieving', 'canine coon hunting':'coon hunting'
+      };
+      const resolved = aliases[base] || base;
       const parent = (activityTypes || []).find(a =>
-        activityBaseKey(a.activity_key) === activityBaseKey(classPrefix[1]) ||
-        activityBaseKey(a.display_name) === activityBaseKey(classPrefix[1])
+        activityBaseKey(a.activity_key) === resolved ||
+        activityBaseKey(a.display_name) === resolved
       );
       return {
-        activity_key: parent?.activity_key || activityBaseKey(classPrefix[1]).replace(/ /g, '_'),
-        display_name: parent?.display_name || classPrefix[1]
+        activity_key: parent?.activity_key || resolved.replace(/\s+/g, '_'),
+        display_name: parent?.display_name || resolved.replace(/\b\w/g, c => c.toUpperCase())
       };
     }
-    // Unattributed historical BIF: retain the record, but don't invent a sport.
-    return { activity_key: 'other', display_name: 'Other' };
+    // Unattributed historical BIF: never manufacture a standalone BIF sport.
+    return {activity_key:'other',display_name:'Other'};
   }
 
   if (storedActivityKey) {
@@ -4151,7 +4166,14 @@ function activityFilterKey(record, activityTypes) {
     record?.class ||
     "unknown";
 
-  return activityBaseKey(cleanActivityDisplayName(raw));
+  const key = activityBaseKey(cleanActivityDisplayName(raw));
+  const aliases = {
+    'agility':'canine agility', 'dog agility':'canine agility',
+    'obedience':'canine obedience', 'rally':'canine rally',
+    'retrieving':'canine retrieving', 'treibball':'canine treibball',
+    'canine tracking':'tracking', 'canine hunting':'hunting'
+  };
+  return aliases[key] || key;
 }
 
 function cleanActivityDisplayName(value) {
@@ -4185,7 +4207,13 @@ function activityFilterButtons(records, tableId, activityTypes) {
     if (!key || byKey.has(key) ||
         normalizedLabel === 'best in field' ||
         normalizedLabel === 'canine hunting best in field') return;
-    byKey.set(key, label);
+    const preferred = {
+      'canine agility':'Agility', 'canine obedience':'Obedience',
+      'canine rally':'Rally', 'canine retrieving':'Retrieving',
+      'canine treibball':'Treibball', 'tracking':'Tracking',
+      'hunting':'Hunting'
+    };
+    byKey.set(key, preferred[key] || label);
   });
 
   const entries = [...byKey.entries()].sort((a,b) => String(a[1]).localeCompare(String(b[1])));
