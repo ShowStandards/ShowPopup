@@ -2482,6 +2482,7 @@ const SS_HUNTING_TITLE_DEFS = {
   pack_hunting:{label:'Pack Hunting',code:'PH',specializations:{rabbit:['Rabbit','r'],hare:['Hare','h'],fox:['Fox','f'],coyote_jackal:['Coyote / Jackal','c'],boar:['Boar','b'],deer:['Deer','d']}},
   catch_dogs:{label:'Catch Dogs',code:'CD',specializations:{boar:['Boar','b'],cattle:['Cattle','c']}},
   tolling:{label:'Tolling',code:'Tl',specializations:{waterfowl:['Waterfowl','w']}},
+  otter_hunting:{label:'Otter Hunting',code:'Ot',specializations:{otter:['Otter','o']}},
   puffin_hunting:{label:'Puffin Hunting',code:'Pu',specializations:{puffin:['Puffin','p']}}
 };
 
@@ -2506,8 +2507,13 @@ function calculateHuntingClubTitles(records, animal) {
   const grouped = {};
 
   club.forEach(record => {
-    const family = normalizeKey(record?.hunting_family).replace(/\s+/g, "_");
-    const specialization = normalizeKey(record?.hunting_specialization).replace(/\s+/g, "_");
+    const rawFamily = normalizeKey(record?.hunting_family).replace(/\s*\/\s*/g, " / ");
+    const family = ["scent / trailing", "scent trailing", "scent_trailing"].includes(rawFamily)
+      ? "trailing"
+      : rawFamily.replace(/[\s-]+/g, "_").replace(/_\/_/g, "_");
+    const specialization = normalizeKey(record?.hunting_specialization)
+      .replace(/\s*\/\s*/g, "_")
+      .replace(/[\s-]+/g, "_");
     const level = normalizeKey(record?.hunting_level);
 
     if (!family || !specialization || !SS_HUNTING_TITLE_LEVELS[level]) return;
