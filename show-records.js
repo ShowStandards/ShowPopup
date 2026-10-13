@@ -2615,7 +2615,9 @@ function calculateHuntingClubTitles(records, animal) {
     const family = ["scent / trailing", "scent trailing", "scent_trailing"].includes(rawFamily)
       ? "trailing"
       : rawFamily.replace(/[\s-]+/g, "_");
-    const specialization = normalizeKey(record?.hunting_specialization).replace(/\s+/g, "_");
+    const specialization = normalizeKey(record?.hunting_specialization)
+      .replace(/\s*\/\s*/g, "_")
+      .replace(/[\s-]+/g, "_");
     const level = normalizeKey(record?.hunting_level);
 
     if (!family || !specialization || !SS_HUNTING_TITLE_LEVELS[level]) return;
