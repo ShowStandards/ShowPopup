@@ -5396,8 +5396,9 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
     normalizeKey(r?.association_key) !== "hunting club" &&
     !normalizeKey(r?.class).startsWith("hunting field test") &&
     !isTestingCertificateRecord(r) &&
-    !isManualScoreRecord(r) &&
-    !isBestInFieldActivityRecord(r)
+    !isManualScoreRecord(r)
+    // Include title-only BIF awards in the visible history. They retain
+    // their stored zero points and are still excluded from point totals.
   ));
 
   const nav = [
