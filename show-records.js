@@ -1643,6 +1643,11 @@ function calculateActivityTotals(activityRecords, activityTypes, animal) {
     const key = canonicalActivityFamilyKey(rawKey, animal);
     if (!key) return;
 
+    // Historical bare "Best in Field" records have no parent sport.
+    // Keep them in the activity history, but do not manufacture an
+    // "Other" point-based title category from an unattributed BIF result.
+    if (key === "other" && isBestInFieldActivityRecord(record)) return;
+
     const isTrickFamily = [
       "equine trick",
       "canine trick",
