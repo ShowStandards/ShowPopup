@@ -2862,9 +2862,13 @@ function getEnduranceTitleProgressData(records, animal) {
     add({category:circuit,title:`${circuit} Champion`,code:codes.champion,requirement:"Finish season as Circuit Champion",current:championRecord?`${championRecord.endurance_season} Champion`:"Not yet earned",earned:Boolean(championRecord),position:"prefix",sort:403+ci*10});
   });
 
-  // World Tour paths are tracked independently.
-  if (touchedCircuits.includes("World Tour")) {
-    ["gemstone","crystal"].forEach((series, si) => {
+  // Only display a World Tour path when the horse has actually entered
+  // that series. Amazing Race and conference finals are separate events.
+  const enteredWorldTourSeries = new Set(club.map(r =>
+    normalizeKey(r?.endurance_series)
+  ).filter(series => series === "gemstone" || series === "crystal"));
+  if (enteredWorldTourSeries.size) {
+    ["gemstone","crystal"].filter(series => enteredWorldTourSeries.has(series)).forEach((series, si) => {
       const required=SS_ENDURANCE_TITLE_RACES.filter(r=>r.circuit==="World Tour"&&r.series===series).map(r=>r.key);
       if (!required.length) return;
       const label=series==="gemstone"?"GemStone":"Crystal";
