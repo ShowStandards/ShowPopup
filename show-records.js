@@ -2610,7 +2610,7 @@ function calculateHuntingClubTitles(records, animal) {
   const club = (records || []).filter(record =>
     normalizeKey(record?.association_key) === 'hunting club' &&
     (
-      normalizeKey(record?.association_event_type).replace(/[\\s_-]+/g, ' ') === 'field test' ||
+      normalizeKey(record?.association_event_type).replace(/[\s_-]+/g, ' ') === 'field test' ||
       /hunting field test/i.test(String(record?.class || record?.class_name || ''))
     )
   );
@@ -2625,8 +2625,8 @@ function calculateHuntingClubTitles(records, animal) {
     'otter hunting':'otter_hunting', 'puffin hunting':'puffin_hunting'
   };
   const canonicalPart = value => {
-    const key = normalizeKey(value).replace(/\\s*\\/\\s*/g,' / ');
-    return familyAliases[key] || key.replace(/[\\s/-]+/g,'_');
+    const key = normalizeKey(value).replace(/\s*\/\s*/g,' / ');
+    return familyAliases[key] || key.replace(/[\s/\-]+/g,'_');
   };
   const grouped = {};
 
@@ -2637,7 +2637,7 @@ function calculateHuntingClubTitles(records, animal) {
     if (!SS_HUNTING_TITLE_DEFS[family] ||
         !SS_HUNTING_TITLE_DEFS[family]?.specializations?.[specialization]) {
       const label = String(record?.class || record?.class_name || '')
-        .replace(/^hunting field test\\s*[-–—]\\s*/i,'');
+        .replace(/^hunting field test\s*[-–—]\s*/i,'');
       const normalizedLabel = normalizeKey(label).replace(/[–—]/g,'-');
       for (const [familyKey, familyDef] of Object.entries(SS_HUNTING_TITLE_DEFS)) {
         const familyNames = [familyDef.label, familyKey.replace(/_/g,' ')];
@@ -2646,7 +2646,7 @@ function calculateHuntingClubTitles(records, animal) {
         );
         if (!matchedName) continue;
         const remainder = normalizedLabel.slice(normalizeKey(matchedName).length)
-          .replace(/^\\s*-\\s*/, '');
+          .replace(/^\s*-\s*/, '');
         for (const [specKey, specDef] of Object.entries(familyDef.specializations)) {
           if (remainder === normalizeKey(specDef[0]) ||
               remainder.startsWith(normalizeKey(specDef[0]) + ' - ')) {
