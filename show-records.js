@@ -2682,9 +2682,16 @@ function calculateHuntingClubTitles(records, animal) {
     if (!grouped[key]) {
       grouped[key] = {family,specialization,counts:{beginners:0,expert:0,masters:0}};
     }
-    if (score >= 110) grouped[key].counts.beginners++;
-    if (score >= 130) grouped[key].counts.expert++;
-    if (score >= 150) grouped[key].counts.masters++;
+    // Only a pass in the actual entered level earns a leg at that level.
+    // A high Beginners score must never become an Expert or Masters leg.
+    const classLevel = normalizeKey(record?.class || record?.class_name || '');
+    const level = ['beginners', 'expert', 'masters'].find(candidate =>
+      normalizeKey(record?.hunting_level) === candidate ||
+      (!normalizeKey(record?.hunting_level) &&
+       new RegExp('(?:^|\\s|[-–—])' + candidate + '(?:$|\\s|[-–—])','i').test(classLevel))
+    );
+    const minScore = {beginners:110,expert:130,masters:150}[level];
+    if (level && score >= minScore) grouped[key].counts[level]++;
   });
 
   const suffixes = [];
@@ -2695,24 +2702,40 @@ function calculateHuntingClubTitles(records, animal) {
     if (!familyDef || !specDef) return;
 
     const levels = ['beginners', 'expert', 'masters'];
-    const highestEarned = levels.slice().reverse().find(level =>
-      group.counts[level] >= SS_HUNTING_TITLE_LEVELS[level].required
-    );
+    // Total milestones: five Beginners, then five Expert, then five Masters.
+    // Never count a lower-level test as a higher-level qualification.
+    const beginnersTotal = group.counts.beginners;
+    const expertTotal = beginnersTotal + group.counts.expert;
+    const mastersTotal = expertTotal + group.counts.masters;
+    const earnedBeginners = beginnersTotal >= 5;
+    const earnedExpert = earnedBeginners && expertTotal >= 10 && group.counts.expert >= 5;
+    const earnedMasters = earnedExpert && mastersTotal >= 15 && group.counts.masters >= 5;
+    const highestEarned = earnedMasters ? 'masters' : earnedExpert ? 'expert' :
+      earnedBeginners ? 'beginners' : null;
     if (highestEarned) {
       suffixes.push(SS_HUNTING_TITLE_LEVELS[highestEarned].prefix +
         familyDef.code + specDef[1]);
     }
-    levels.forEach((level, index) => {
+
+    // Show Beginners and only the next unlocked progression. Later levels
+    // stay hidden until the preceding title has been earned.
+    const visibleLevels = ['beginners'];
+    if (earnedBeginners) visibleLevels.push('expert');
+    if (earnedExpert) visibleLevels.push('masters');
+    visibleLevels.forEach((level, index) => {
       const def = SS_HUNTING_TITLE_LEVELS[level];
-      const current = group.counts[level];
+      const current = level === 'beginners' ? beginnersTotal :
+        level === 'expert' ? expertTotal : mastersTotal;
+      const earned = level === 'beginners' ? earnedBeginners :
+        level === 'expert' ? earnedExpert : earnedMasters;
       rows.push({
         category: familyDef.label + ' | ' + specDef[0],
         title: def.label + ' ' + familyDef.label + ' | ' + specDef[0],
         code: def.prefix + familyDef.code + specDef[1],
         requirement: def.required + ' qualifying tests (min ' +
-          ({beginners:110,expert:130,masters:150}[level]) + '/200)',
+          ({beginners:110,expert:130,masters:150}[level]) + '/200 for ' + level + ' tests)',
         current: current + '/' + def.required + ' qualifications',
-        earned: current >= def.required,
+        earned,
         sort: 770 + index
       });
     });
