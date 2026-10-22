@@ -2702,14 +2702,15 @@ function calculateHuntingClubTitles(records, animal) {
     if (!familyDef || !specDef) return;
 
     const levels = ['beginners', 'expert', 'masters'];
-    // Total milestones: five Beginners, then five Expert, then five Masters.
-    // Never count a lower-level test as a higher-level qualification.
+    // Each level requires its own independent passing tests.
+    // Beginners legs never contribute to Expert; Expert legs never
+    // contribute to Masters.
     const beginnersTotal = group.counts.beginners;
-    const expertTotal = beginnersTotal + group.counts.expert;
-    const mastersTotal = expertTotal + group.counts.masters;
+    const expertTotal = group.counts.expert;
+    const mastersTotal = group.counts.masters;
     const earnedBeginners = beginnersTotal >= 5;
-    const earnedExpert = earnedBeginners && expertTotal >= 10 && group.counts.expert >= 5;
-    const earnedMasters = earnedExpert && mastersTotal >= 15 && group.counts.masters >= 5;
+    const earnedExpert = earnedBeginners && expertTotal >= 10;
+    const earnedMasters = earnedExpert && mastersTotal >= 15;
     const highestEarned = earnedMasters ? 'masters' : earnedExpert ? 'expert' :
       earnedBeginners ? 'beginners' : null;
     if (highestEarned) {
