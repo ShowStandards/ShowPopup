@@ -2661,10 +2661,18 @@ function calculateHuntingClubTitles(records, animal) {
 
     if (!SS_HUNTING_TITLE_DEFS[family]?.specializations?.[specialization]) return;
 
+    // Legacy uploads sometimes stored the 200-point result in score_label
+    // rather than the numeric score field.
     const rawScore = record?.score;
-    const score = Number(rawScore);
-    if (rawScore === null || rawScore === undefined || rawScore === '' ||
-        !Number.isFinite(score)) return;
+    const numericScore = rawScore !== null && rawScore !== undefined &&
+      String(rawScore).trim() !== '' ? Number(rawScore) : NaN;
+    const scoreText = [record?.score_label, record?.placement]
+      .filter(Boolean).join(' | ');
+    const legacyScore = scoreText.match(/\b(\d{2,3})\s*\/\s*200\b/);
+    const score = Number.isFinite(numericScore)
+      ? numericScore
+      : (legacyScore ? Number(legacyScore[1]) : NaN);
+    if (!Number.isFinite(score) || score < 0 || score > 200) return;
 
     // The randomizer's explicit Qualified/Pass result matters: score alone
     // cannot override a DQ or failed category minimum.
