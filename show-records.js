@@ -5421,9 +5421,19 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
     herdingRules
   );
 
+  // Keep Hunting Club titles in the registered name even if an older
+  // shared title engine build was cached by the browser/CDN.
+  const huntingDisplayTitles = calculateHuntingClubTitles(records, animal).suffixes;
+  const displayTitleData = {
+    ...titleData,
+    suffixTitles: uniqueTitleList([
+      ...(titleData?.suffixTitles || []),
+      ...huntingDisplayTitles
+    ])
+  };
   const registeredName = window.ShowStandardTitleEngine.buildNameFromTitleData(
     animal,
-    titleData
+    displayTitleData
   );
   const pointRows = getPointBasedTitleRows(records, titleRules, activityRules, activityTypes, animal);
   const clubs = getClubPanels(records, animal, herdingRules);
