@@ -1654,6 +1654,8 @@ function calculateActivityTotals(activityRecords, activityTypes, animal) {
       "canine trick",
       "feline trick"
     ].includes(key);
+    const isCatVaulting = normalizeKey(animal?.species) === "cat" &&
+      key === "feline vaulting";
 
     if (!activityTotals[key]) {
       activityTotals[key] = {
@@ -1664,7 +1666,9 @@ function calculateActivityTotals(activityRecords, activityTypes, animal) {
           ? "Show Hunter"
           : (isTrickFamily
               ? "Trick"
-              : (activity.display_name || fallbackActivityNameFromClass(record.class) || "Unknown Activity")),
+              : (isCatVaulting
+                  ? "Vaulting"
+                  : (activity.display_name || fallbackActivityNameFromClass(record.class) || "Unknown Activity"))),
         points: 0
       };
     }
