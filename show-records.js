@@ -2694,27 +2694,27 @@ function calculateHuntingClubTitles(records, animal) {
     const specDef = familyDef?.specializations?.[group.specialization];
     if (!familyDef || !specDef) return;
 
-    // Expert and Masters use TOTAL qualifying legs at their own score
-    // thresholds, not additional legs after the preceding title.
-    const thresholds = [
-      ['masters',15], ['expert',10], ['beginners',5]
-    ];
-    const earnedLevel = thresholds.find(([key,required]) =>
-      group.counts[key] >= required
-    )?.[0] || null;
-    const displayLevel = earnedLevel || 'beginners';
-    const levelDef = SS_HUNTING_TITLE_LEVELS[displayLevel];
-    const current = group.counts[displayLevel];
-    const code = levelDef.prefix + familyDef.code + specDef[1];
-    if (earnedLevel) suffixes.push(code);
-    rows.push({
-      category: familyDef.label + ' | ' + specDef[0],
-      title: levelDef.label + ' ' + familyDef.label + ' | ' + specDef[0],
-      code,
-      requirement: levelDef.required + ' qualifying tests',
-      current: current + '/' + levelDef.required + ' qualifications',
-      earned: Boolean(earnedLevel),
-      sort: 770
+    const levels = ['beginners', 'expert', 'masters'];
+    const highestEarned = levels.slice().reverse().find(level =>
+      group.counts[level] >= SS_HUNTING_TITLE_LEVELS[level].required
+    );
+    if (highestEarned) {
+      suffixes.push(SS_HUNTING_TITLE_LEVELS[highestEarned].prefix +
+        familyDef.code + specDef[1]);
+    }
+    levels.forEach((level, index) => {
+      const def = SS_HUNTING_TITLE_LEVELS[level];
+      const current = group.counts[level];
+      rows.push({
+        category: familyDef.label + ' | ' + specDef[0],
+        title: def.label + ' ' + familyDef.label + ' | ' + specDef[0],
+        code: def.prefix + familyDef.code + specDef[1],
+        requirement: def.required + ' qualifying tests (min ' +
+          ({beginners:110,expert:130,masters:150}[level]) + '/200)',
+        current: current + '/' + def.required + ' qualifications',
+        earned: current >= def.required,
+        sort: 770 + index
+      });
     });
   });
   return {suffixes:uniqueTitleList(suffixes),rows};
