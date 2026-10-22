@@ -2499,89 +2499,115 @@ function calculateHuntingClubTitles(records, animal) {
 
   const club = (records || []).filter(record =>
     normalizeKey(record?.association_key) === 'hunting club' &&
-    normalizeKey(record?.association_event_type) === 'field test'
+    (
+      normalizeKey(record?.association_event_type).replace(/[\s_-]+/g, ' ') === 'field test' ||
+      /hunting field test/i.test(String(record?.class || record?.class_name || ''))
+    )
   );
-
   if (!club.length) return {suffixes:[],rows:[]};
 
+  // Older uploads did not always save the hunting_* metadata. Recover the
+  // family/specialization from their class label without modifying records.
+  const familyAliases = {
+    'scent / trailing':'trailing', 'scent trailing':'trailing',
+    'versatile hunting':'versatile', 'treeing / baying':'treeing_baying',
+    'pack hunting':'pack_hunting', 'catch dogs':'catch_dogs',
+    'otter hunting':'otter_hunting', 'puffin hunting':'puffin_hunting'
+  };
+  const canonicalPart = value => {
+    const key = normalizeKey(value).replace(/\s*\/\s*/g,' / ');
+    return familyAliases[key] || key.replace(/[\s/\-]+/g,'_');
+  };
   const grouped = {};
 
   club.forEach(record => {
-    const rawFamily = normalizeKey(record?.hunting_family).replace(/\s*\/\s*/g, " / ");
-    const family = ["scent / trailing", "scent trailing", "scent_trailing"].includes(rawFamily)
-      ? "trailing"
-      : rawFamily.replace(/[\s-]+/g, "_").replace(/_\/_/g, "_");
-    const specialization = normalizeKey(record?.hunting_specialization)
-      .replace(/\s*\/\s*/g, "_")
-      .replace(/[\s-]+/g, "_");
-    const level = normalizeKey(record?.hunting_level);
+    let family = canonicalPart(record?.hunting_family);
+    let specialization = canonicalPart(record?.hunting_specialization);
 
-    if (!family || !specialization || !SS_HUNTING_TITLE_LEVELS[level]) return;
+    if (!SS_HUNTING_TITLE_DEFS[family] ||
+        !SS_HUNTING_TITLE_DEFS[family]?.specializations?.[specialization]) {
+      const label = String(record?.class || record?.class_name || '')
+        .replace(/^hunting field test\s*[-–—]\s*/i,'');
+      const normalizedLabel = normalizeKey(label).replace(/[–—]/g,'-');
+      for (const [familyKey, familyDef] of Object.entries(SS_HUNTING_TITLE_DEFS)) {
+        const familyNames = [familyDef.label, familyKey.replace(/_/g,' ')];
+        const matchedName = familyNames.find(name =>
+          normalizedLabel.startsWith(normalizeKey(name) + ' - ')
+        );
+        if (!matchedName) continue;
+        const remainder = normalizedLabel.slice(normalizeKey(matchedName).length)
+          .replace(/^\s*-\s*/, '');
+        for (const [specKey, specDef] of Object.entries(familyDef.specializations)) {
+          if (remainder === normalizeKey(specDef[0]) ||
+              remainder.startsWith(normalizeKey(specDef[0]) + ' - ')) {
+            family = familyKey;
+            specialization = specKey;
+            break;
+          }
+        }
+        if (family === familyKey && familyDef.specializations[specialization]) break;
+      }
+    }
+
+    if (!SS_HUNTING_TITLE_DEFS[family]?.specializations?.[specialization]) return;
+
+    // Legacy uploads sometimes stored the 200-point result in score_label
+    // rather than the numeric score field.
+    const rawScore = record?.score;
+    const numericScore = rawScore !== null && rawScore !== undefined &&
+      String(rawScore).trim() !== '' ? Number(rawScore) : NaN;
+    const scoreText = [record?.score_label, record?.placement]
+      .filter(Boolean).join(' | ');
+    const legacyScore = scoreText.match(/\b(\d{2,3})\s*\/\s*200\b/);
+    const score = Number.isFinite(numericScore)
+      ? numericScore
+      : (legacyScore ? Number(legacyScore[1]) : NaN);
+    if (!Number.isFinite(score) || score < 0 || score > 200) return;
+
+    // The randomizer's explicit Qualified/Pass result matters: score alone
+    // cannot override a DQ or failed category minimum.
+    if (recordPassed(record) !== true) return;
 
     const key = family + '::' + specialization;
-
     if (!grouped[key]) {
-      grouped[key] = {
-        family,
-        specialization,
-        counts:{beginners:0,expert:0,masters:0}
-      };
+      grouped[key] = {family,specialization,counts:{beginners:0,expert:0,masters:0}};
     }
-
-    if (recordPassed(record) === true) {
-      grouped[key].counts[level]++;
-    }
+    if (score >= 110) grouped[key].counts.beginners++;
+    if (score >= 130) grouped[key].counts.expert++;
+    if (score >= 150) grouped[key].counts.masters++;
   });
 
   const suffixes = [];
   const rows = [];
-
   Object.values(grouped).forEach(group => {
     const familyDef = SS_HUNTING_TITLE_DEFS[group.family];
     const specDef = familyDef?.specializations?.[group.specialization];
     if (!familyDef || !specDef) return;
 
-    const beginnerDef = SS_HUNTING_TITLE_LEVELS.beginners;
-    const expertDef = SS_HUNTING_TITLE_LEVELS.expert;
-    const mastersDef = SS_HUNTING_TITLE_LEVELS.masters;
-
-    let displayLevel = "beginners";
-    let earned = false;
-
-    if (group.counts.masters >= mastersDef.required) {
-      displayLevel = "masters";
-      earned = true;
-    } else if (group.counts.expert >= expertDef.required) {
-      displayLevel = "expert";
-      earned = true;
-    } else if (group.counts.beginners >= beginnerDef.required) {
-      displayLevel = "beginners";
-      earned = true;
-    } else {
-      displayLevel = "beginners";
+    const levels = ['beginners', 'expert', 'masters'];
+    const highestEarned = levels.slice().reverse().find(level =>
+      group.counts[level] >= SS_HUNTING_TITLE_LEVELS[level].required
+    );
+    if (highestEarned) {
+      suffixes.push(SS_HUNTING_TITLE_LEVELS[highestEarned].prefix +
+        familyDef.code + specDef[1]);
     }
-
-    const levelDef = SS_HUNTING_TITLE_LEVELS[displayLevel];
-    const current = group.counts[displayLevel] || 0;
-    const code = levelDef.prefix + familyDef.code + specDef[1];
-
-    if (earned) suffixes.push(code);
-
-    rows.push({
-      category: familyDef.label + " | " + specDef[0],
-      title: levelDef.label + " " + familyDef.label + " | " + specDef[0],
-      code,
-      requirement: levelDef.required + " qualifying tests",
-      current: current + "/" + levelDef.required + " qualifications",
-      earned,
-      sort: 770
+    levels.forEach((level, index) => {
+      const def = SS_HUNTING_TITLE_LEVELS[level];
+      const current = group.counts[level];
+      rows.push({
+        category: familyDef.label + ' | ' + specDef[0],
+        title: def.label + ' ' + familyDef.label + ' | ' + specDef[0],
+        code: def.prefix + familyDef.code + specDef[1],
+        requirement: def.required + ' qualifying tests (min ' +
+          ({beginners:110,expert:130,masters:150}[level]) + '/200)',
+        current: current + '/' + def.required + ' qualifications',
+        earned: current >= def.required,
+        sort: 770 + index
+      });
     });
   });
-
-  return {
-    suffixes: uniqueTitleList(suffixes),
-    rows
-  };
+  return {suffixes:uniqueTitleList(suffixes),rows};
 }
 
 function isEnduranceClubRecord(record) {
