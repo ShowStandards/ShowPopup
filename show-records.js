@@ -3960,8 +3960,16 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
       herdingText === "herding"
     ) return;
 
-    const rules = getActivityRulesForTotal(total, activityRules)
-      .slice().sort((a,b) => Number(a.points_required || 0) - Number(b.points_required || 0));
+    let rules = getActivityRulesForTotal(total, activityRules);
+    // Older Treibball Team records sometimes resolve under the generic team
+    // label; its actual dog title rules are stored as canine_treibball_team.
+    if (!rules.length && normalizeKey(animal?.species) === "dog" &&
+        /^(?:canine )?treibball team$/.test(herdingText.replace(/_/g, " "))) {
+      rules = (activityRules || []).filter(r =>
+        activityBaseKey(r.activity_key) === "canine treibball team"
+      );
+    }
+    rules = rules.slice().sort((a,b) => Number(a.points_required || 0) - Number(b.points_required || 0));
     const title = highestTitle(total.points, rules);
     const next = rules.find(r => Number(r.points_required || 0) > Number(total.points || 0));
     const displayedTitle = title ? displayActivityTitle(title, total.points) : null;
@@ -3969,9 +3977,9 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
     rows.push({
       activity: cleanActivityDisplayName(total.display_name || total.activity_key),
       title: displayedTitle ? `${displayedTitle} ${title.title_name || ""}`.trim() : "No title yet",
-      required: title ? Number(title.points_required || 0) : Number(next?.points_required || 0),
+      required: rules.length ? (title ? Number(title.points_required || 0) : Number(next?.points_required || 0)) : null,
       earned: Number(total.points || 0),
-      status: title ? "Earned" : "In Progress",
+      status: !rules.length ? "No title rules" : (title ? "Earned" : "In Progress"),
       maxed: hasMaxedBaseTitle(total.points, rules),
       sort: 1
     });
@@ -4037,7 +4045,7 @@ function renderPointBasedTitles(rows) {
               <tr>
                 <td>${escapeHtml(row.activity)}</td>
                 <td class="${row.maxed ? "maxed-title-cell" : ""}">${escapeHtml(row.title)}${row.maxed ? ` <span class="max-title-medal" title="Maximum base title reached" aria-label="Maximum base title reached">🏅</span>` : ""}</td>
-                <td>${row.required ? Number(row.required).toLocaleString() : ""}</td>
+                <td>${row.required != null && row.required > 0 ? Number(row.required).toLocaleString() : "Not configured"}</td>
                 <td>${Number(row.earned || 0).toLocaleString()}</td>
                 <td><span class="status-pill ${row.status === "Earned" ? "earned" : "progress"}">${escapeHtml(row.status)}</span></td>
               </tr>
