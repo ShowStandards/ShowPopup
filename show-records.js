@@ -153,7 +153,11 @@ function findMatchedActivity(classText, activityTypes) {
 }
 
 function baseCompetitionKey(value) {
-  return activityBaseKey(value).replace(/^(?:canine|feline|equine|dog|cat|horse)\s+/, "").trim();
+  return activityBaseKey(value)
+    .replace(/^(?:canine|feline|equine|dog|cat|horse)\s+/, "")
+    // Older records use "Triebball"; the configured title family is "Treibball".
+    .replace(/^triebball(?=\s|$)/, "treibball")
+    .trim();
 }
 
 function getActivityRulesForTotal(total, activityRules, animal) {
