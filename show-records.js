@@ -3609,6 +3609,8 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
   Object.keys(activityTotals).forEach(key => {
     const total = activityTotals[key];
     const rules = getActivityRulesForTotal(total, activityRules);
+    // No configured point-based title progression: omit the misleading blank row.
+    if (!rules.length) return;
     const title = highestTitle(total.points, rules);
     const displayedTitle = title ? displayActivityTitle(title, total.points) : null;
 
@@ -3938,7 +3940,7 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
     const herdingText = normalizeKey(`${total.activity_key || ""} ${total.display_name || ""}`);
     // Drovers Tests and Pick Up classes are Herding classes, not separate
     // point-based activities. Keep their original records and club progress.
-    if (/\\b(?:drovers?\\s+test|pick\\s*up)\\b/.test(herdingText)) return;
+    if (/\b(?:drovers?\s+test|pick\s*up)\b/.test(herdingText)) return;
     // Synthetic Best in Field buckets are not standalone activity titles.
     const titleActivity = normalizeKey(total.display_name || total.activity_key).replace(/[_-]+/g, " ");
     if (titleActivity === "best in field" ||
