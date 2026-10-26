@@ -3936,6 +3936,9 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
 
   Object.values(activityTotals).forEach(total => {
     const herdingText = normalizeKey(`${total.activity_key || ""} ${total.display_name || ""}`);
+    // Drovers Tests and Pick Up classes are Herding classes, not separate
+    // point-based activities. Keep their original records and club progress.
+    if (/\\b(?:drovers?\\s+test|pick\\s*up)\\b/.test(herdingText)) return;
     // Synthetic Best in Field buckets are not standalone activity titles.
     const titleActivity = normalizeKey(total.display_name || total.activity_key).replace(/[_-]+/g, " ");
     if (titleActivity === "best in field" ||
