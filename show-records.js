@@ -1334,6 +1334,14 @@ function fallbackActivityNameFromClass(className) {
     .trim();
 }
 
+function isHerdingClubClassRecord(record) {
+  if (canonicalShowType(record?.show_type) !== "activity") return false;
+  // Match the named Herding Club classes only, with their stock designation.
+  // Older uploads may omit the "Herding -" prefix.
+  const classText = normalizeKey(record?.class).replace(/^herding\s*-\s*/, "");
+  return /^(?:drovers?\s+test|pick\s*up|gambler['’]?s?\s+choice|brace|seek\s+and\s+return|puppy(?:\s+classes?)?)\s*\(\s*(?:sheep|ducks?|cattle|reindeer)\s*\)(?:\s*-\s*.*)?$/.test(classText);
+}
+
 function isHerdingActivityRecord(record) {
   if (canonicalShowType(record?.show_type) !== "activity") return false;
 
@@ -1343,6 +1351,7 @@ function isHerdingActivityRecord(record) {
   const combined = `${classText} ${showText} ${labelText}`;
 
   return (
+    isHerdingClubClassRecord(record) ||
     classText === "herding" ||
     classText.startsWith("herding -") ||
     classText.includes("herding stakes") ||
