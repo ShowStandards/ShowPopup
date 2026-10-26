@@ -157,11 +157,12 @@ function baseCompetitionKey(value) {
 }
 
 function getActivityRulesForTotal(total, activityRules, animal) {
+  const keys = new Set([total.activity_key, total.display_name].map(baseCompetitionKey).filter(Boolean));
   const base = baseCompetitionKey(total.activity_key || total.display_name);
   const species = normalizeKey(animal?.species);
   const speciesPrefix = {dog:"canine",cat:"feline",horse:"equine"}[species];
   const matches = (activityRules || []).filter(r =>
-    baseCompetitionKey(r.activity_key) === base
+    keys.has(baseCompetitionKey(r.activity_key))
   );
   // Prefer the animal's own species-specific progression, where configured.
   // Otherwise use the shared unprefixed progression; never mix species rules.
@@ -169,7 +170,7 @@ function getActivityRulesForTotal(total, activityRules, animal) {
     activityBaseKey(r.activity_key).startsWith(speciesPrefix + " ")
   ) : [];
   if (specific.length) return specific;
-  return matches.filter(r => activityBaseKey(r.activity_key) === base);
+  return matches.filter(r => keys.has(activityBaseKey(r.activity_key)));
 }
 
 function pointsValue(record) {
@@ -1312,6 +1313,21 @@ function calculateBreedingAwardTitles(animal) {
 
 async function getTableRows(tableName) {
   const supabase = getSupabase();
+
+  // Title rule tables can grow beyond Supabase's per-request row limit.
+  // Retrieve every active rule instead of silently missing later activities.
+  if (tableName === "activity_title_rules") {
+    const all = [];
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await supabase.from(tableName)
+        .select("*").eq("active", true).order("activity_key").order("points_required")
+        .range(offset, offset + 499);
+      if (error) { console.warn(tableName + " error:", error.message); return all; }
+      all.push(...(data || []));
+      if (!data || data.length < 500) break;
+    }
+    return all;
+  }
 
   const { data, error } = await supabase
     .from(tableName)
