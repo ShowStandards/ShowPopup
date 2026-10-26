@@ -3951,7 +3951,19 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
   );
   const activityTotals = calculateActivityTotals(activityRecords, activityTypes, animal);
 
+  // Merge historical species-prefixed and unprefixed activity buckets before
+  // building rows, so they cannot render as duplicate competitions.
+  const mergedTotals = new Map();
   Object.values(activityTotals).forEach(total => {
+    const key = baseCompetitionKey(total.activity_key || total.display_name);
+    if (!key) return;
+    if (!mergedTotals.has(key)) mergedTotals.set(key, { ...total, activity_key: key.replace(/\\s+/g, "_"), points: 0 });
+    const merged = mergedTotals.get(key);
+    merged.points += Number(total.points || 0);
+    if (baseCompetitionKey(merged.display_name) !== key) merged.display_name = key;
+  });
+
+  Array.from(mergedTotals.values()).forEach(total => {
     const herdingText = normalizeKey(`${total.activity_key || ""} ${total.display_name || ""}`);
     // Drovers Tests and Pick Up classes are Herding classes, not separate
     // point-based activities. Keep their original records and club progress.
@@ -3966,7 +3978,7 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
       herdingText === "herding"
     ) return;
 
-    let rules = getActivityRulesForTotal(total, activityRules);
+    let rules = getActivityRulesForTotal(total, activityRules, animal);
     // Older Treibball Team records sometimes resolve under the generic team
     // label; its actual dog title rules are stored as canine_treibball_team.
     if (!rules.length && normalizeKey(animal?.species) === "dog" &&
