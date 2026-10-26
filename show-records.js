@@ -152,18 +152,24 @@ function findMatchedActivity(classText, activityTypes) {
   }) || null;
 }
 
-function getActivityRulesForTotal(total, activityRules) {
-  return activityRules.filter(r => {
-    const ruleKey = activityBaseKey(r.activity_key);
-    const totalKey = activityBaseKey(total.activity_key);
-    const totalName = activityBaseKey(total.display_name);
+function baseCompetitionKey(value) {
+  return activityBaseKey(value).replace(/^(?:canine|feline|equine|dog|cat|horse)\s+/, "").trim();
+}
 
-    return (
-      ruleKey === totalKey ||
-      ruleKey === totalName ||
-      ruleKey.replace(/\s+/g, "_") === totalKey.replace(/\s+/g, "_")
-    );
-  });
+function getActivityRulesForTotal(total, activityRules, animal) {
+  const base = baseCompetitionKey(total.activity_key || total.display_name);
+  const species = normalizeKey(animal?.species);
+  const speciesPrefix = {dog:"canine",cat:"feline",horse:"equine"}[species];
+  const matches = (activityRules || []).filter(r =>
+    baseCompetitionKey(r.activity_key) === base
+  );
+  // Prefer the animal's own species-specific progression, where configured.
+  // Otherwise use the shared unprefixed progression; never mix species rules.
+  const specific = speciesPrefix ? matches.filter(r =>
+    activityBaseKey(r.activity_key).startsWith(speciesPrefix + " ")
+  ) : [];
+  if (specific.length) return specific;
+  return matches.filter(r => activityBaseKey(r.activity_key) === base);
 }
 
 function pointsValue(record) {
@@ -1630,7 +1636,7 @@ function canonicalActivityFamilyKey(value, animal) {
     }
   };
 
-  return speciesAliases[species]?.[key] || key;
+  return baseCompetitionKey(speciesAliases[species]?.[key] || key);
 }
 
 function calculateActivityTotals(activityRecords, activityTypes, animal) {
@@ -3617,7 +3623,7 @@ function calculateTitleData(records, animal, titleRules, activityRules, activity
 
   Object.keys(activityTotals).forEach(key => {
     const total = activityTotals[key];
-    const rules = getActivityRulesForTotal(total, activityRules);
+    const rules = getActivityRulesForTotal(total, activityRules, animal);
     // No configured point-based title progression: omit the misleading blank row.
     if (!rules.length) return;
     const title = highestTitle(total.points, rules);
@@ -3975,7 +3981,7 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
     const displayedTitle = title ? displayActivityTitle(title, total.points) : null;
 
     rows.push({
-      activity: cleanActivityDisplayName(total.display_name || total.activity_key),
+      activity: cleanActivityDisplayName(String(total.display_name || total.activity_key).replace(/^(?:canine|feline|equine|dog|cat|horse)[ _]+/i, "")),
       title: displayedTitle ? `${displayedTitle} ${title.title_name || ""}`.trim() : "No title yet",
       required: rules.length ? (title ? Number(title.points_required || 0) : Number(next?.points_required || 0)) : null,
       earned: Number(total.points || 0),
