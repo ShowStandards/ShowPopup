@@ -4023,7 +4023,17 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
     });
   });
 
-  return rows.sort((a,b) => a.sort - b.sort || String(a.activity).localeCompare(String(b.activity)));
+  // Legacy class buckets can resolve to the same visible competition even
+  // when their internal keys differ. Suppress only zero-point, unconfigured
+  // duplicates; keep every legitimate point-bearing row intact.
+  const configuredNames = new Set(rows.filter(row => row.required != null)
+    .map(row => baseCompetitionKey(row.activity)));
+  return rows.filter(row => !(
+    row.sort === 1 &&
+    row.earned === 0 &&
+    row.required == null &&
+    configuredNames.has(baseCompetitionKey(row.activity))
+  )).sort((a,b) => a.sort - b.sort || String(a.activity).localeCompare(String(b.activity)));
 }
 
 function isBestInGroupPlacement(record) {
