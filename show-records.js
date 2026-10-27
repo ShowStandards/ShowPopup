@@ -1667,7 +1667,7 @@ function calculateActivityTotals(activityRecords, activityTypes, animal) {
     // point/title rows. Normal site Hunting records have no hunting_club
     // association_key, so the real Hunting activity remains untouched.
     if (
-      normalizeKey(record?.association_key) === "hunting club" ||
+      ["hunting club", "hunting_club"].includes(normalizeKey(record?.association_key)) ||
       normalizeKey(record?.class).startsWith("hunting field test")
     ) return;
 
