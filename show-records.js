@@ -1577,7 +1577,7 @@ function resolveActivityForRecord(record, activityTypes) {
      Match the parent sport before treating the division as an activity.
      Use the configured activity_types list; never invent a new title family. */
   const legacyClass = String(record?.class || "").trim();
-  const legacyParent = legacyClass.split(/\\s+[-–—]\\s+/)[0].trim();
+  const legacyParent = legacyClass.split(/\s+[-–—]\s+/)[0].trim();
   const legacyParentKey = baseCompetitionKey(legacyParent);
   const parentActivity = legacyParentKey && legacyClass !== legacyParent
     ? (activityTypes || []).find(a =>
@@ -1591,7 +1591,7 @@ function resolveActivityForRecord(record, activityTypes) {
     };
   }
   // Some very old Hunting Spitzes entries omitted the "Hunting -" divider.
-  if (/^(?:canine\\s+)?hunting\\s+spitzes(?:\\s|$)/i.test(legacyClass)) {
+  if (/^(?:canine\s+)?hunting\s+spitzes(?:\s|$)/i.test(legacyClass)) {
     return { activity_key: "hunting", display_name: "Hunting" };
   }
 
