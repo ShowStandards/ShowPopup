@@ -1573,6 +1573,28 @@ function resolveActivityForRecord(record, activityTypes) {
     };
   }
 
+  /* Legacy records often have no activity_key and use "Sport - Division - Group".
+     Match the parent sport before treating the division as an activity.
+     Use the configured activity_types list; never invent a new title family. */
+  const legacyClass = String(record?.class || "").trim();
+  const legacyParent = legacyClass.split(/\\s+[-–—]\\s+/)[0].trim();
+  const legacyParentKey = baseCompetitionKey(legacyParent);
+  const parentActivity = legacyParentKey && legacyClass !== legacyParent
+    ? (activityTypes || []).find(a =>
+        baseCompetitionKey(a.activity_key) === legacyParentKey ||
+        baseCompetitionKey(a.display_name) === legacyParentKey)
+    : null;
+  if (parentActivity) {
+    return {
+      activity_key: parentActivity.activity_key || parentActivity.display_name,
+      display_name: parentActivity.display_name || parentActivity.activity_key
+    };
+  }
+  // Some very old Hunting Spitzes entries omitted the "Hunting -" divider.
+  if (/^(?:canine\\s+)?hunting\\s+spitzes(?:\\s|$)/i.test(legacyClass)) {
+    return { activity_key: "hunting", display_name: "Hunting" };
+  }
+
   /* Legacy fallback for historical records that do not have activity_key. */
   const matchedActivity = findMatchedActivity(record?.class, activityTypes);
 
