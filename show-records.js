@@ -4035,7 +4035,7 @@ function getPointBasedTitleRows(records, titleRules, activityRules, activityType
     const displayedTitle = title ? displayActivityTitle(title, total.points) : null;
 
     rows.push({
-      activity: cleanActivityDisplayName(String(total.display_name || total.activity_key).replace(/^(?:canine|feline|equine|dog|cat|horse)[ _]+/i, "")),
+      activity: cleanActivityDisplayName(String(total.display_name || total.activity_key).replace(/^(?:canine|feline|equine|dog|cat|horse)[ _]+/i, "")).replace(/^in hand dressage$/i, "In Hand Dressage"),
       title: displayedTitle ? `${displayedTitle} ${title.title_name || ""}`.trim() : "No title yet",
       required: rules.length ? (title ? Number(title.points_required || 0) : Number(next?.points_required || 0)) : null,
       earned: Number(total.points || 0),
