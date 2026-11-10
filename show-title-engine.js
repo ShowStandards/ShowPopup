@@ -4663,8 +4663,14 @@ function isSpanielQualifyingPlacement(record) {
 
 function isSpanielBOB(record) {
   if (!isSpanielClubRecord(record)) return false;
+  if (canonicalShowType(record?.show_type) !== "conformation") return false;
   const p = normalizeKey(record?.placement);
-  return p === "bob" || p.includes("best of breed");
+  // A group/show award implies a Best of Breed win at that show.
+  return p === "bob" ||
+    p === "best of breed" ||
+    /^best of breed\b/.test(p) ||
+    /^(?:big|rbig|bis|rbis)$/.test(p) ||
+    /^(?:reserve\s+)?best\s+in\s+(?:group|show)$/.test(p);
 }
 
 function isSpanielBIS(record) {
@@ -4716,7 +4722,10 @@ function calculateSpanielClubTitles(records, animal) {
   if (!clubRecords.length) return { prefixes: [], suffixes: [], rows: [], division: "unknown", progress: null };
 
   const division = spanielDivision(clubRecords, animal);
-  const bobCount = uniqueSpanielCount(clubRecords, isSpanielBOB, "bob");
+  // One implied BOB per show, even when BOB and BIS are separate rows.
+  const bobCount = new Set(clubRecords.filter(isSpanielBOB).map(r =>
+    `${normalizeKey(r?.show_name)}|${String(r?.event_date || "")}`
+  )).size;
   const bisCount = uniqueSpanielCount(clubRecords, isSpanielBIS, "bis");
   const challengeQs = uniqueSpanielCount(clubRecords, isSpanielChallengeQualification, "challenge");
 
