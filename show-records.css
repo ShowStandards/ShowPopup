@@ -715,3 +715,124 @@ body.ss-dark-mode .spaniel-progress-row{
   }
 }
 
+/* =========================================================
+   SHOW STANDARD 2027 — elegant show records presentation
+   CSS-only visual alignment with the forum's updated skin.
+   ========================================================= */
+:root{
+  --accent:#468986;
+  --accent-dark:#2f6f6f;
+  --accent-deep:#245b59;
+  --line:rgba(70,137,134,.20);
+  --line-strong:rgba(70,137,134,.30);
+  --panel:#fff;
+  --page:#f5f5f2;
+}
+body{
+  background:var(--page);
+  padding:clamp(12px,2.5vw,25px);
+}
+.wrapper{max-width:1120px}
+h1{
+  font-family:'Cormorant Garamond','Uchen',Georgia,serif;
+  font-size:clamp(30px,4vw,43px);
+  font-style:italic;
+  font-weight:500;
+  letter-spacing:0;
+  text-transform:none;
+  border-bottom:1px solid var(--line);
+  padding-bottom:13px;
+  margin-bottom:18px;
+}
+.panel,.animal-header{
+  border-radius:10px;
+  border-color:var(--line);
+  box-shadow:0 5px 19px rgba(28,67,62,.035);
+}
+.animal-header{
+  padding:21px 24px;
+  border-left:2px solid #6a9e95;
+  margin-bottom:14px;
+}
+.full-name{
+  font-family:'Uchen',Georgia,serif;
+  font-size:clamp(22px,2.8vw,31px);
+  font-weight:400;
+}
+.title-strip{padding:17px 20px}
+.panel-title{
+  font-family:'Uchen',Georgia,serif;
+  font-size:19px;
+  font-weight:400;
+  letter-spacing:0;
+  text-transform:none;
+  border-bottom:1px solid var(--line);
+  padding-bottom:10px;
+}
+.registered-name{
+  background:#f3f8f5;
+  border-radius:7px;
+  font-weight:400;
+}
+.main-tabs{
+  background:#edf4f1;
+  border-color:var(--line);
+  border-radius:9px;
+  padding:5px;
+}
+.main-tab,.year-tab,.activity-tab{
+  font-family:'Quicksand',Arial,sans-serif;
+  letter-spacing:.015em;
+  text-transform:none;
+  border-radius:6px;
+}
+.main-tab{font-size:12px;padding:10px 13px}
+.main-tab.active,.year-tab.active,.activity-tab.active{
+  background:#2f6f6f;
+  color:#fff;
+}
+.year-tab,.activity-tab{background:#fff}
+.overview-grid{gap:13px}
+.overview-grid>.panel,.tab-panel>.panel{padding:clamp(14px,2vw,20px)}
+.records-table th,.titles-table th{
+  background:#2f6f6f;
+  font-family:'Barlow SC',Arial,sans-serif;
+  font-weight:600;
+  letter-spacing:.09em;
+}
+.records-table td,.titles-table td{line-height:1.6}
+.highlight-row{padding:10px 2px}
+.highlight-row span{font-family:'Barlow SC',Arial,sans-serif}
+.mini-stat,.versatility-current,.testing-title-card,
+.spaniel-title-card,.empty{border-radius:7px}
+.spaniel-title-head{background:#f2f7f4}
+.spaniel-title-head h4{
+  font-family:'Uchen',Georgia,serif;
+  font-weight:400;
+  font-size:16px;
+  letter-spacing:0;
+  text-transform:none;
+}
+body.ss-dark-mode{
+  --page:#171f1d;
+  --panel:#25312e;
+  --line:#405651;
+  --line-strong:#55746c;
+}
+body.ss-dark-mode .main-tabs{background:#1c2925}
+body.ss-dark-mode .registered-name,
+body.ss-dark-mode .spaniel-title-head{background:#22332d}
+body.ss-dark-mode .main-tab,
+body.ss-dark-mode .year-tab,
+body.ss-dark-mode .activity-tab{color:#d3e4df}
+body.ss-dark-mode .main-tab.active,
+body.ss-dark-mode .year-tab.active,
+body.ss-dark-mode .activity-tab.active{color:#fff}
+body.ss-dark-mode .panel-title,
+body.ss-dark-mode .spaniel-title-head h4{color:#b6dcd3}
+@media(max-width:560px){
+  .animal-header{padding:16px}
+  .title-strip{padding:14px}
+  .main-tab{flex:1 1 125px}
+  .overview-grid>.panel,.tab-panel>.panel{padding:12px}
+}
