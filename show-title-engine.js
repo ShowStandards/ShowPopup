@@ -3262,23 +3262,12 @@ function calculateEnduranceClubTitles(records, animal) {
   /*
     Explicit named-series titles supported now/future.
   */
-  const firstPlaceRaceNames = new Set(
-    club
-      .filter(record => enduranceNumericPlacement(record) === 1)
-      .map(record => normalizeKey(record?.endurance_race_name))
-  );
-
-  const firstPlaceRaceKeys = new Set(
-    club
-      .filter(record => enduranceNumericPlacement(record) === 1)
-      .map(record => String(record?.endurance_race_key || "").trim())
-  );
-
-  if (
-    firstPlaceRaceKeys.has("desert_circuit_dubai_crown_prince_conference") ||
-    firstPlaceRaceNames.has("dubai crown prince conference") ||
-    firstPlaceRaceNames.has("dubai crown prince endurance cup")
-  ) {
+  // Match the full event name, not the shared conference race key.
+  const dcpecCupShowName = "endurance club racemeet #7 - the uae endurance cup conference - dubai crown prince endurance cup";
+  if (club.some(record =>
+    enduranceNumericPlacement(record) === 1 &&
+    normalizeKey(record?.show_name) === dcpecCupShowName
+  )) {
     suffixes.push("DCPEC");
     rows.push({titleName:"Dubai Crown Prince Endurance Cup",titleCode:"DCPEC",count:"Winner",sort:840});
   }
