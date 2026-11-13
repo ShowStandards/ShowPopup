@@ -2812,11 +2812,15 @@ function getEnduranceTitleProgressData(records, animal) {
     });
   }
 
-  const firstPlaceRaceNames=new Set(club.filter(r=>enduranceNumericPlacement(r)===1).map(r=>normalizeKey(r?.endurance_race_name)));
-  const firstPlaceRaceKeys=new Set(club.filter(r=>enduranceNumericPlacement(r)===1).map(r=>String(r?.endurance_race_key||"").trim()));
-  const dcpecEarned=firstPlaceRaceKeys.has("desert_circuit_dubai_crown_prince_conference")||firstPlaceRaceNames.has("dubai crown prince conference")||firstPlaceRaceNames.has("dubai crown prince endurance cup");
-  if (club.some(r=>String(r?.endurance_race_key||"").includes("dubai_crown_prince")) || dcpecEarned) {
-    add({category:"Named Titles",title:"Dubai Crown Prince Endurance Cup",code:"DCPEC",requirement:"Win the Dubai Crown Prince Conference",current:dcpecEarned?"Winner":"Not yet earned",earned:dcpecEarned,sort:700});
+  // The conference race key/name is shared by several different events.
+  // DCPEC is earned only by winning the named Cup itself.
+  const dcpecCupShow="endurance club racemeet #7 - the uae endurance cup conference - dubai crown prince endurance cup";
+  const dcpecEarned=club.some(r=>
+    enduranceNumericPlacement(r)===1 &&
+    normalizeKey(r?.show_name)===dcpecCupShow
+  );
+  if (club.some(r=>normalizeKey(r?.show_name)===dcpecCupShow)) {
+    add({category:"Named Titles",title:"Dubai Crown Prince Endurance Cup",code:"DCPEC",requirement:"Win Endurance Club Racemeet #7 - The UAE Endurance Cup Conference - Dubai Crown Prince Endurance Cup",current:dcpecEarned?"Winner":"Not yet earned",earned:dcpecEarned,sort:700});
   }
 
   return {rows:rows.sort((a,b)=>a.sort-b.sort),prefixes:uniqueTitleList(prefixes),suffixes:uniqueTitleList(suffixes)};
