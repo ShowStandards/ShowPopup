@@ -5962,7 +5962,7 @@ async function loadRecords() {
     const [{ data: hofInductions, error: hofError }, { data: hofAnimalPoints }, { data: hofActivityPoints }] = await Promise.all([
       supabase.from("hall_of_fame_inductions").select("category,activity_key,activity_name,points_at_induction,inducted_at").eq("animal_id", animalId).order("inducted_at", { ascending: true }),
       supabase.from("leaderboard_animal_cache").select("conformation_points").eq("animal_id", animalId).maybeSingle(),
-      supabase.from("leaderboard_activity_cache").select("activity_key,activity_points").eq("animal_id", animalId)
+      supabase.from("hall_of_fame_activity_totals").select("activity_key,activity_points").eq("animal_id", animalId)
     ]);
     if (hofError) console.warn("Hall of Fame unavailable:", hofError.message);
     const hofPoints = {
