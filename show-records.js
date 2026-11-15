@@ -5536,7 +5536,26 @@ function collapseTeamActivityRecords(records) {
   return collapsed;
 }
 
-function renderRecords(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules) {
+function renderHallOfFamePanel(inducted, animal, currentPoints) {
+  const rows = Array.isArray(inducted) ? inducted : [];
+  if (!rows.length) {
+    return '<section class="panel"><h3 class="panel-title">Hall of Fame</h3><div class="empty">No Hall of Fame inductions yet. Earn over 20,000 Conformation points or reach 500 points in a single activity to qualify.</div></section>';
+  }
+  const cards = rows.map(entry => {
+    const isConf = entry.category === "conformation";
+    const title = isConf ? "Conformation Hall of Fame" : (entry.activity_name || entry.activity_key || "Activity") + " Hall of Fame";
+    const current = isConf ? currentPoints?.conformation_points : currentPoints?.activities?.[entry.activity_key];
+    const shownPoints = Number.isFinite(Number(current)) && current !== undefined && current !== null ? Number(current) : Number(entry.points_at_induction || 0);
+    const inductedDate = entry.inducted_at ? new Date(entry.inducted_at).toLocaleDateString() : "";
+    return '<div class="hof-entry" style="padding:12px 0;border-bottom:1px solid rgba(128,128,128,.22)">' +
+      '<strong>🏆 ' + escapeHtml(title) + '</strong>' +
+      '<div>Lifetime points: ' + shownPoints.toLocaleString() + ' · Inducted: ' + escapeHtml(inductedDate) + '</div>' +
+      '</div>';
+  }).join("");
+  return '<section class="panel"><h3 class="panel-title">Hall of Fame</h3><p>Permanent lifetime recognition</p>' + cards + '</section>';
+}
+
+function renderRecords(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules, hofInductions, hofPoints) {
   if (!window.ShowStandardTitleEngine) {
     throw new Error("Shared title engine failed to load.");
   }
@@ -5581,6 +5600,7 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
 
   const nav = [
     {key:"overview", label:"Overview"},
+    {key:"hall-of-fame", label:"Hall of Fame"},
     {key:"conformation", label:"Conformation Records"},
     {key:"activities", label:"Activity Records"},
     ...(testingRecords.length ? [{key:"testing", label:"Testing & Certificates"}] : []),
@@ -5611,6 +5631,10 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
           ${renderPointBasedTitles(pointRows)}
           ${buildHighlights(records)}
         </div>
+      </section>
+
+      <section class="tab-panel" data-panel="hall-of-fame">
+        ${renderHallOfFamePanel(hofInductions, animal, hofPoints)}
       </section>
 
       <section class="tab-panel" data-panel="conformation">
@@ -5932,6 +5956,18 @@ async function loadRecords() {
     // from those live CH. / SprWCH. thresholds.
     animal._breedingAwards = await loadBreedingAwardData(animal, titleRules);
 
+    // Permanent inductions are stored separately from the daily leaderboard caches.
+    const [{ data: hofInductions, error: hofError }, { data: hofAnimalPoints }, { data: hofActivityPoints }] = await Promise.all([
+      supabase.from("hall_of_fame_inductions").select("category,activity_key,activity_name,points_at_induction,inducted_at").eq("animal_id", animalId).order("inducted_at", { ascending: true }),
+      supabase.from("leaderboard_animal_cache").select("conformation_points").eq("animal_id", animalId).maybeSingle(),
+      supabase.from("leaderboard_activity_cache").select("activity_key,activity_points").eq("animal_id", animalId)
+    ]);
+    if (hofError) console.warn("Hall of Fame unavailable:", hofError.message);
+    const hofPoints = {
+      conformation_points: hofAnimalPoints?.conformation_points,
+      activities: Object.fromEntries((hofActivityPoints || []).map(row => [row.activity_key, row.activity_points]))
+    };
+
     content.innerHTML = renderRecords(
       allRows || [],
       animal,
@@ -5939,7 +5975,9 @@ async function loadRecords() {
       activityRules,
       activityTypes,
       totalRules,
-      herdingRules
+      herdingRules,
+      hofInductions || [],
+      hofPoints
     );
 
     wireShowRecordTabs();
