@@ -90,7 +90,7 @@ async function render(){
  el("heading").textContent=category==="activity"?(activity?(el("activity").selectedOptions[0]?.textContent||"Activity")+" Hall of Fame":"Activity Hall of Fame"):category==="versatility"?"Versatility Hall of Fame":"Conformation Hall of Fame";
  el("results").innerHTML='<tr><td colspan="4" class="hof-empty">Loading rankings...</td></tr>';
  try{
-  const table=category==="activity"?"leaderboard_activity_cache":"leaderboard_animal_cache";
+  const table=category==="activity"?"hall_of_fame_activity_totals":"leaderboard_animal_cache";
   const pointField=category==="activity"?"activity_points":category==="versatility"?"activity_points":"conformation_points";
   const fields=category==="activity"?"animal_id,animal_number,animal_name,species,breed,owner,activity_key,activity_name,activity_points":"animal_id,animal_number,animal_name,species,breed,owner,conformation_points,activity_points";
   let query=db.from(table).select(fields,{count:"exact"}).order(pointField,{ascending:false}).range(offset,offset+PAGE-1);
