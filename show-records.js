@@ -5538,18 +5538,20 @@ function collapseTeamActivityRecords(records) {
 
 function renderHallOfFamePanel(inducted, animal, currentPoints) {
   const rows = Array.isArray(inducted) ? inducted : [];
-  if (!rows.length) {
-    return '<section class="panel"><h3 class="panel-title">Hall of Fame</h3><p><a href="hall-of-fame.html">Browse the Show Standard Hall of Fame</a></p><div class="empty">No Hall of Fame inductions yet. Earn over 20,000 Conformation points or reach 500 points in a single activity to qualify.</div></section>';
-  }
+  const activityRows = rows.filter(entry => entry.category === "activity");
   const cards = rows.map(entry => {
     const isConf = entry.category === "conformation";
-    const title = isConf ? "Conformation Hall of Fame" : (entry.activity_name || entry.activity_key || "Activity") + " Hall of Fame";
+    const isVersatility = entry.category === "versatility";
+    const title = isVersatility ? "Versatility Hall of Fame" : isConf ? "Conformation Hall of Fame" : (entry.activity_name || entry.activity_key || "Activity") + " Hall of Fame";
     const current = isConf ? currentPoints?.conformation_points : currentPoints?.activities?.[entry.activity_key];
     const shownPoints = Number.isFinite(Number(current)) && current !== undefined && current !== null ? Number(current) : Number(entry.points_at_induction || 0);
     const inductedDate = entry.inducted_at ? new Date(entry.inducted_at).toLocaleDateString() : "";
-    return '<div class="hof-entry" style="padding:12px 0;border-bottom:1px solid rgba(128,128,128,.22)">' +
+    const details = isVersatility
+      ? activityRows.length + " qualifying activity Halls of Fame: " + activityRows.map(item => item.activity_name || item.activity_key).sort().join(", ")
+      : "Lifetime points: " + shownPoints.toLocaleString();
+    return '<div class="hof-entry" style="padding:12px 0;border-bottom:1px solid var(--line)">' +
       '<strong>🏆 ' + escapeHtml(title) + '</strong>' +
-      '<div>Lifetime points: ' + shownPoints.toLocaleString() + ' · Inducted: ' + escapeHtml(inductedDate) + '</div>' +
+      '<div>' + escapeHtml(details) + ' · Inducted: ' + escapeHtml(inductedDate) + '</div>' +
       '</div>';
   }).join("");
   return '<section class="panel"><h3 class="panel-title">Hall of Fame</h3><p>Permanent lifetime recognition · <a href="hall-of-fame.html">Browse all inductees</a></p>' + cards + '</section>';
