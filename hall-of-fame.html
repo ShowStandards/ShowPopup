@@ -34,7 +34,7 @@ body{padding:24px 14px 46px!important;font-family:'Quicksand',Arial,sans-serif}
 <section class="panel hof-intro"><h3 class="panel-title">Lifetime Achievements</h3><p>Celebrating exceptional animals across Show Standard. Conformation requires more than 20,000 points; each individual activity requires at least 500 points. Once earned, Hall of Fame recognition is permanent.</p></section>
 <section class="panel hof-toolbar" aria-label="Hall of Fame filters">
 <label>Species<select id="species"><option value="">All Species</option><option value="dog">Dogs</option><option value="cat">Cats</option><option value="horse">Horses</option></select></label>
-<label>Category<select id="category"><option value="activity">Activities</option><option value="conformation">Conformation</option></select></label>
+<label>Category<select id="category"><option value="activity">Activities</option><option value="conformation">Conformation</option><option value="versatility">Versatility</option></select></label>
 <label id="activity-wrap">Activity<select id="activity"><option value="">All Activities</option></select></label>
 <label>Display<select id="display"><option value="all">All Animals & Progress</option><option value="inducted">Hall of Fame Inductees Only</option></select></label>
 </section>
@@ -85,17 +85,18 @@ function showError(err){console.error(err);el("summary").textContent="Unable to 
 async function render(){
  const token=++request,category=el("category").value,species=el("species").value,activity=el("activity").value,only=el("display").value==="inducted";
  el("activity-wrap").hidden=category!=="activity";
- el("activity-column").textContent=category==="activity"?"Activity":"Breed";
- el("heading").textContent=category==="activity"?(activity?(el("activity").selectedOptions[0]?.textContent||"Activity")+" Hall of Fame":"Activity Hall of Fame"):"Conformation Hall of Fame";
+ el("display").disabled=category==="versatility";
+ el("activity-column").textContent=category==="activity"?"Activity":category==="versatility"?"Qualifying Activities":"Breed";
+ el("heading").textContent=category==="activity"?(activity?(el("activity").selectedOptions[0]?.textContent||"Activity")+" Hall of Fame":"Activity Hall of Fame"):category==="versatility"?"Versatility Hall of Fame":"Conformation Hall of Fame";
  el("results").innerHTML='<tr><td colspan="4" class="hof-empty">Loading rankings...</td></tr>';
  try{
   const table=category==="activity"?"leaderboard_activity_cache":"leaderboard_animal_cache";
-  const pointField=category==="activity"?"activity_points":"conformation_points";
-  const fields=category==="activity"?"animal_id,animal_number,animal_name,species,breed,owner,activity_key,activity_name,activity_points":"animal_id,animal_number,animal_name,species,breed,owner,conformation_points";
+  const pointField=category==="activity"?"activity_points":category==="versatility"?"activity_points":"conformation_points";
+  const fields=category==="activity"?"animal_id,animal_number,animal_name,species,breed,owner,activity_key,activity_name,activity_points":"animal_id,animal_number,animal_name,species,breed,owner,conformation_points,activity_points";
   let query=db.from(table).select(fields,{count:"exact"}).order(pointField,{ascending:false}).range(offset,offset+PAGE-1);
   if(species)query=query.eq("species",species);
   if(category==="activity"&&activity)query=query.eq("activity_key",activity);
-  if(only){
+  if(only||category==="versatility"){
    const eligible=inductions.filter(x=>x.category===category&&(!activity||category==="conformation"||x.activity_key===activity));
    const ids=[...new Set(eligible.map(x=>x.animal_id))];
    if(!ids.length){if(token!==request)return;display([],0,category,only);return;}
@@ -108,15 +109,16 @@ async function render(){
  }catch(err){if(token===request)showError(err);}
 }
 function display(rows,count,category,only,inducted=new Set()){
- const threshold=category==="activity"?500:20001;
- el("summary").textContent=only?"Permanent inductees · "+count.toLocaleString()+" matching cache records":"Showing "+(rows.length?offset+1:0)+"–"+(offset+rows.length)+" of "+count.toLocaleString()+" records · "+fmt(threshold)+" points to qualify";
+ const threshold=category==="activity"?500:category==="versatility"?5:20001;
+ el("summary").textContent=category==="versatility"?"Permanent inductees · 5 different activity Halls of Fame required":only?"Permanent inductees · "+count.toLocaleString()+" matching cache records":"Showing "+(rows.length?offset+1:0)+"–"+(offset+rows.length)+" of "+count.toLocaleString()+" records · "+fmt(threshold)+" points to qualify";
  el("prev").disabled=offset===0;el("next").disabled=offset+PAGE>=count;
  el("results").innerHTML=rows.length?rows.map(x=>{
   const key=category==="activity"?x.activity_key:"",earned=inducted.has(x.animal_id+"|"+key);
-  const pts=Number(category==="activity"?x.activity_points:x.conformation_points)||0;
+  const qualifying=category==="versatility"?inductions.filter(i=>i.animal_id===x.animal_id&&i.category==="activity"):[];
+  const pts=category==="versatility"?new Set(qualifying.map(i=>i.activity_key)).size:Number(category==="activity"?x.activity_points:x.conformation_points)||0;
   const name=x.animal_name||"Animal #"+x.animal_number;
-  const detail=category==="activity"?(x.activity_name||x.activity_key):x.breed||"—";
-  return '<tr><td><a href="show-records.html?id='+encodeURIComponent(x.animal_number||"")+'">'+esc(name)+'</a><small>'+esc([x.species,x.breed,x.owner].filter(Boolean).join(" · "))+'</small></td><td>'+esc(detail)+'</td><td class="hof-score">'+fmt(pts)+'</td><td><span class="hof-status '+(earned?"earned":"")+'">'+(earned?"★ Inducted":pts>=threshold?"Eligible · Pending induction":"Not Yet")+'</span></td></tr>';
+  const detail=category==="activity"?(x.activity_name||x.activity_key):category==="versatility"?qualifying.map(i=>i.activity_name||i.activity_key).sort().join(", "):x.breed||"—";
+  return '<tr><td><a href="show-records.html?id='+encodeURIComponent(x.animal_number||"")+'">'+esc(name)+'</a><small>'+esc([x.species,x.breed,x.owner].filter(Boolean).join(" · "))+'</small></td><td>'+esc(detail)+'</td><td class="hof-score">'+fmt(pts)+(category==="versatility"?" activities":"")+'</td><td><span class="hof-status '+(earned?"earned":"")+'">'+(earned?"★ Inducted":pts>=threshold?"Eligible · Pending induction":"Not Yet")+'</span></td></tr>';
  }).join(""):'<tr><td colspan="4" class="hof-empty">No records match these filters yet.</td></tr>';
 }
 ["species","category","activity","display"].forEach(id=>el(id).addEventListener("change",()=>{if(id==="species")updateActivityOptions();offset=0;render();}));
