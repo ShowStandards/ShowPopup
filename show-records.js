@@ -5600,7 +5600,7 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
 
   const nav = [
     {key:"overview", label:"Overview"},
-    {key:"hall-of-fame", label:"Hall of Fame"},
+    ...(hofInductions?.length ? [{key:"hall-of-fame", label:"Hall of Fame"}] : []),
     {key:"conformation", label:"Conformation Records"},
     {key:"activities", label:"Activity Records"},
     ...(testingRecords.length ? [{key:"testing", label:"Testing & Certificates"}] : []),
@@ -5633,9 +5633,9 @@ function renderRecords(records, animal, titleRules, activityRules, activityTypes
         </div>
       </section>
 
-      <section class="tab-panel" data-panel="hall-of-fame">
+      ${hofInductions?.length ? `<section class="tab-panel" data-panel="hall-of-fame">
         ${renderHallOfFamePanel(hofInductions, animal, hofPoints)}
-      </section>
+      </section>` : ""}
 
       <section class="tab-panel" data-panel="conformation">
         <section class="panel">
