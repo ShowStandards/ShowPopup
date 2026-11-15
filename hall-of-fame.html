@@ -28,9 +28,25 @@ body{padding:24px 14px 46px!important;font-family:'Quicksand',Arial,sans-serif}
 .hof-actions button{font-family:'Barlow SC',Arial,sans-serif!important;text-transform:uppercase;font-size:11px!important;letter-spacing:.04em}
 .hof-info{text-align:center;font-size:10px!important;line-height:1.5}
 @media(max-width:520px){.hof-shell{padding:16px 12px}.hof-toolbar{grid-template-columns:1fr}.hof-shell h1{font-size:25px!important}}
+
+/* Keep the embedded JCINK page still; scroll the animal results only. */
+html,body{height:100%;overflow:hidden!important}
+body{box-sizing:border-box;height:100vh;min-height:0;padding:12px 14px!important}
+.wrapper{height:100%;min-height:0;display:flex;flex-direction:column}
+.hof-shell{height:100%;min-height:0;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden;padding-bottom:14px}
+.hof-shell h1{flex:none;margin-bottom:3px!important}
+.hof-eyebrow{flex:none;margin:0 0 15px!important;text-align:center}
+.hof-intro,.hof-toolbar,.hof-summary,.hof-actions,.hof-info{flex-shrink:0}
+.hof-results-panel{flex:1 1 auto;min-height:120px;display:flex;flex-direction:column;overflow:hidden!important}
+.hof-scroll{flex:1 1 auto;min-height:0;overflow-y:auto!important;overflow-x:auto!important;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#9dbdb9 #f5f9f8}
+.hof-table{width:100%;border-collapse:separate;border-spacing:0}
+.hof-table thead th{position:sticky;top:0;z-index:2}
+.hof-actions{margin:9px 0 5px}
+.hof-info{margin-top:4px}
+@media(max-height:650px){.hof-intro{padding:8px 12px!important;margin-bottom:8px!important}.hof-toolbar{margin:9px 0!important;gap:8px 12px!important}.hof-summary{margin:6px 0!important}.hof-info{display:none}}
 </style></head>
-<body><main class="wrapper"><div class="hof-eyebrow">Show Standard · Lifetime Recognition</div><div class="hof-shell">
-<h1>Show Standard Hall of Fame</h1>
+<body><main class="wrapper"><div class="hof-shell">
+<h1>Show Standard Hall of Fame</h1><div class="hof-eyebrow">Show Standard · Lifetime Recognition</div>
 <section class="panel hof-intro"><h3 class="panel-title">Lifetime Achievements</h3><p>Celebrating exceptional animals across Show Standard. Conformation requires more than 20,000 points; each individual activity requires at least 500 points. Once earned, Hall of Fame recognition is permanent.</p></section>
 <section class="panel hof-toolbar" aria-label="Hall of Fame filters">
 <label>Species<select id="species"><option value="">All Species</option><option value="dog">Dogs</option><option value="cat">Cats</option><option value="horse">Horses</option></select></label>
@@ -39,7 +55,7 @@ body{padding:24px 14px 46px!important;font-family:'Quicksand',Arial,sans-serif}
 <label>Display<select id="display"><option value="all">All Animals & Progress</option><option value="inducted">Hall of Fame Inductees Only</option></select></label>
 </section>
 <section class="panel hof-summary"><strong id="heading">Activity Hall of Fame</strong><span id="summary">Loading records...</span></section>
-<section class="panel hof-results-panel"><div class="table-wrap"><table class="hof-table"><thead><tr><th>Animal</th><th id="activity-column">Activity</th><th>Points</th><th>Hall of Fame</th></tr></thead><tbody id="results"><tr><td colspan="4" class="hof-empty">Loading...</td></tr></tbody></table></div></section>
+<section class="panel hof-results-panel"><div class="table-wrap hof-scroll"><table class="hof-table"><thead><tr><th>Animal</th><th id="activity-column">Activity</th><th>Points</th><th>Hall of Fame</th></tr></thead><tbody id="results"><tr><td colspan="4" class="hof-empty">Loading...</td></tr></tbody></table></div></section>
 <div class="hof-actions"><button id="prev" disabled>Previous</button><button id="next" disabled>Next</button></div><p class="hof-info">Rankings use the existing Show Standard leaderboard point caches. Permanent inductions remain recorded even if an animal's points change.</p></div>
 </main><script>
 const db=window.supabase.createClient("https://vyuklkrqusfvrcaqxmfm.supabase.co","sb_publishable_2LSbJafkRatck5Ei8HXL-g_0tezT6qu");
