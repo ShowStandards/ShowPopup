@@ -1,58 +1,83 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Show Standard — Hall of Fame</title>
+<link rel="stylesheet" href="show-records.css">
 <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 <style>
-:root{color-scheme:dark;font-family:Arial,sans-serif}body{margin:0;background:#111827;color:#f3f4f6}main{max-width:1100px;margin:36px auto;padding:0 20px}h1{font-size:2.3rem;margin:8px 0}p{color:#aeb9ca}.toolbar{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0}.toolbar label{display:grid;gap:6px;font-size:.88rem;color:#cbd5e1}.toolbar select{min-width:190px;background:#1f2937;color:white;border:1px solid #475569;border-radius:8px;padding:11px}.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}.stat{padding:14px 20px;background:#1f2937;border-radius:10px}.stat strong{font-size:1.4rem;display:block}.entry{display:flex;justify-content:space-between;gap:20px;align-items:center;background:#1f2937;border:1px solid #374151;border-radius:12px;padding:18px;margin:10px 0}.entry a{color:#f9e4a5;font-weight:bold;text-decoration:none}.entry small{display:block;color:#aeb9ca;margin-top:7px}.points{text-align:right;font-weight:bold;white-space:nowrap}.empty{padding:30px;background:#1f2937;border-radius:12px;color:#cbd5e1}.sub{font-size:.95rem}.pill{display:inline-block;border:1px solid #6b7280;border-radius:20px;padding:4px 9px;font-size:.75rem;color:#e5e7eb;margin-top:7px}@media(max-width:600px){.entry{align-items:flex-start}.points{font-size:.85rem}}
+body{padding:22px 18px 45px}.hof-intro{padding:18px 20px;margin:12px 0}.hof-intro p{font-size:13px;line-height:1.65;color:var(--muted);margin:6px 0}.hof-toolbar{display:flex;flex-wrap:wrap;gap:12px;padding:14px;margin:12px 0}.hof-toolbar label{display:flex;flex-direction:column;gap:6px;font-size:11px;text-transform:uppercase;font-family:'Barlow SC',Arial,sans-serif;letter-spacing:.06em;color:var(--accent-dark);font-weight:700}.hof-toolbar select{min-width:170px;max-width:300px;padding:9px 10px;border:1px solid var(--line-strong);border-radius:6px;background:var(--panel);color:var(--text);font:inherit;font-size:13px;text-transform:none;letter-spacing:normal}.hof-toolbar select:focus{outline:2px solid var(--accent)}.hof-summary{padding:12px 16px;margin-bottom:12px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;align-items:center}.hof-summary strong{font-family:'Barlow SC',Arial,sans-serif;color:var(--accent-dark);font-size:16px}.hof-summary span{color:var(--muted);font-size:12px}.hof-table{width:100%;border-collapse:collapse}.hof-table th{background:var(--accent-dark);color:#fff;font-family:'Barlow SC',Arial,sans-serif;text-align:left;letter-spacing:.07em;text-transform:uppercase;font-size:11px;padding:11px 12px}.hof-table td{padding:11px 12px;border-bottom:1px solid var(--line);font-size:13px}.hof-table tbody tr:nth-child(even){background:var(--soft)}.hof-table a{color:var(--accent-dark);font-weight:700;text-decoration:none}.hof-table a:hover{text-decoration:underline}.hof-table small{display:block;color:var(--muted);margin-top:3px}.hof-score{font-weight:700;white-space:nowrap}.hof-status{font-size:11px;font-weight:700;color:var(--muted)}.hof-status.earned{color:#2c7a43}.hof-empty{padding:22px;color:var(--muted);font-size:13px}.hof-actions{display:flex;justify-content:center;gap:8px;margin:15px 0}.hof-actions button{border:1px solid var(--line-strong);border-radius:6px;background:var(--panel);color:var(--accent-dark);padding:9px 14px;cursor:pointer}.hof-actions button:disabled{opacity:.4;cursor:default}.hof-info{font-size:12px;color:var(--muted);margin-top:10px}@media(max-width:650px){.hof-toolbar label{width:100%}.hof-toolbar select{max-width:none;width:100%}.hof-table th,.hof-table td{padding:9px 7px;font-size:11px}.hof-table th:nth-child(3),.hof-table td:nth-child(3){display:none}}
 </style></head>
-<body><main><div class="sub">SHOW STANDARD · LIFETIME ACHIEVEMENTS</div><h1>🏆 Hall of Fame</h1><p>Permanent recognition for animals that have earned over 20,000 Conformation points or at least 500 points in an individual activity. An animal can belong to multiple halls.</p>
-<div class="toolbar"><label>Species<select id="species"><option value="">All species</option><option value="dog">Dogs</option><option value="cat">Cats</option><option value="horse">Horses</option></select></label>
-<label>Category<select id="category"><option value="conformation">Conformation</option><option value="activity">Activities</option></select></label>
-<label id="activity-wrap" hidden>Activity<select id="activity"><option value="">All activities</option></select></label></div>
-<div class="stats"><div class="stat"><strong id="count">—</strong><span>Inductions displayed</span></div></div><div id="results" class="empty">Loading Hall of Fame...</div></main>
-<script>
+<body><main class="wrapper">
+<h1>Show Standard Hall of Fame</h1>
+<section class="panel hof-intro"><h3 class="panel-title">Lifetime Achievements</h3><p>Celebrating exceptional animals across Show Standard. Conformation requires more than 20,000 points; each individual activity requires at least 500 points. Once earned, Hall of Fame recognition is permanent.</p></section>
+<section class="panel hof-toolbar" aria-label="Hall of Fame filters">
+<label>Species<select id="species"><option value="">All Species</option><option value="dog">Dogs</option><option value="cat">Cats</option><option value="horse">Horses</option></select></label>
+<label>Category<select id="category"><option value="activity">Activities</option><option value="conformation">Conformation</option></select></label>
+<label id="activity-wrap">Activity<select id="activity"><option value="">All Activities</option></select></label>
+<label>Display<select id="display"><option value="all">All Animals & Progress</option><option value="inducted">Hall of Fame Inductees Only</option></select></label>
+</section>
+<section class="panel hof-summary"><strong id="heading">Activity Hall of Fame</strong><span id="summary">Loading records...</span></section>
+<section class="panel"><div class="table-wrap"><table class="hof-table"><thead><tr><th>Animal</th><th id="activity-column">Activity</th><th>Points</th><th>Hall of Fame</th></tr></thead><tbody id="results"><tr><td colspan="4" class="hof-empty">Loading...</td></tr></tbody></table></div></section>
+<div class="hof-actions"><button id="prev" disabled>Previous</button><button id="next" disabled>Next</button></div><p class="hof-info">Rankings use the existing Show Standard leaderboard point caches. Permanent inductions remain recorded even if an animal's points change.</p>
+</main><script>
 const db=window.supabase.createClient("https://vyuklkrqusfvrcaqxmfm.supabase.co","sb_publishable_2LSbJafkRatck5Ei8HXL-g_0tezT6qu");
-const byId=id=>document.getElementById(id);
-const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let all=[];
-async function fetchAll(table,select){let out=[];for(let start=0;;start+=1000){const {data,error}=await db.from(table).select(select).range(start,start+999);if(error)throw error;out.push(...(data||[]));if(!data||data.length<1000)break;}return out;}
-function render(){
- const category=byId("category").value,species=byId("species").value,activity=byId("activity").value;
- byId("activity-wrap").hidden=category!=="activity";
- const entries=all.filter(x=>x.category===category&&(!species||x.animal?.species?.toLowerCase()===species)&&(category!=="activity"||!activity||x.activity_key===activity));
- entries.sort((a,b)=>(b.current_points-a.current_points)||String(a.animal?.name||"").localeCompare(String(b.animal?.name||"")));
- byId("count").textContent=entries.length.toLocaleString();
- byId("results").className=entries.length?"":"empty";
- byId("results").innerHTML=entries.length?entries.map(x=>{
- const a=x.animal||{},label=x.category==="conformation"?"Conformation":x.activity_name||x.activity_key;
- return '<article class="entry"><div><a href="show-records.html?id='+encodeURIComponent(a.animal_number||"")+'">'+esc(a.name||"Animal #"+a.animal_number)+'</a><small>'+esc([a.breed,a.species,a.owner].filter(Boolean).join(" · "))+'</small><span class="pill">'+esc(label)+' Hall of Fame</span><small>Inducted '+esc(new Date(x.inducted_at).toLocaleDateString())+'</small></div><div class="points">'+Number(x.current_points).toLocaleString()+' pts</div></article>';
- }).join(""):'No animals have qualified for this Hall of Fame yet.';
+const el=id=>document.getElementById(id);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const PAGE=100;let offset=0,request=0,inductions=[],activityTypes=[];
+const fmt=n=>Number(n||0).toLocaleString();
+async function loadInductions(){
+ let result=[];for(let i=0;;i+=1000){const {data,error}=await db.from("hall_of_fame_inductions").select("animal_id,category,activity_key,activity_name,points_at_induction,inducted_at").range(i,i+999);if(error)throw error;result.push(...(data||[]));if(!data||data.length<1000)break;}return result;
 }
-async function load(){
+async function setup(){
  try{
- const inductions=await fetchAll("hall_of_fame_inductions","animal_id,category,activity_key,activity_name,points_at_induction,inducted_at");
- if (!inductions.length) {all=[];render();return;}
- const ids=[...new Set(inductions.map(x=>x.animal_id))];
- const fetchForIds=async(table,fields)=>{
-   const result=[];
-   for(let i=0;i<ids.length;i+=100){
-     const {data,error}=await db.from(table).select(fields).in("animal_id",ids.slice(i,i+100));
-     if(error)throw error;
-     result.push(...(data||[]));
-   }
-   return result;
- };
- const [animals,conf,activities]=await Promise.all([
-  (async()=>{const result=[];for(let i=0;i<ids.length;i+=100){const {data,error}=await db.from("animals").select("id,animal_number,name,species,breed,owner").in("id",ids.slice(i,i+100));if(error)throw error;result.push(...(data||[]));}return result;})(),
-  fetchForIds("leaderboard_animal_cache","animal_id,conformation_points"),
-  fetchForIds("leaderboard_activity_cache","animal_id,activity_key,activity_points")
- ]);
- const animalMap=new Map(animals.map(x=>[x.id,x])),confMap=new Map(conf.map(x=>[x.animal_id,x.conformation_points])),activityMap=new Map(activities.map(x=>[x.animal_id+"|"+x.activity_key,x.activity_points]));
- all=inductions.map(x=>({...x,animal:animalMap.get(x.animal_id),current_points:(x.category==="conformation"?confMap.get(x.animal_id):activityMap.get(x.animal_id+"|"+x.activity_key))??x.points_at_induction}));
- const keys=[...new Map(all.filter(x=>x.category==="activity").map(x=>[x.activity_key,x.activity_name||x.activity_key])).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
- byId("activity").innerHTML='<option value="">All activities</option>'+keys.map(([k,n])=>'<option value="'+esc(k)+'">'+esc(n)+'</option>').join("");
- render();
- }catch(err){console.error(err);byId("results").className="empty";byId("results").textContent="Hall of Fame could not be loaded: "+err.message;}
+  const [inductionRows,typeRows]=await Promise.all([loadInductions(),db.from("activity_types").select("activity_key,display_name,points_enabled,active").eq("points_enabled",true)]);
+  if(typeRows.error)throw typeRows.error;
+  inductions=inductionRows;activityTypes=(typeRows.data||[]).filter(x=>x.activity_key);
+  const map=new Map(activityTypes.map(x=>[x.activity_key,x.display_name||x.activity_key]));
+  for(const x of inductions.filter(x=>x.category==="activity"))if(!map.has(x.activity_key))map.set(x.activity_key,x.activity_name||x.activity_key);
+  el("activity").innerHTML='<option value="">All Activities</option>'+[...map].sort((a,b)=>a[1].localeCompare(b[1])).map(([key,name])=>'<option value="'+esc(key)+'">'+esc(name)+'</option>').join("");
+  await render();
+ }catch(err){showError(err);}
 }
-["species","category","activity"].forEach(id=>byId(id).addEventListener("change",render));load();
+function showError(err){console.error(err);el("summary").textContent="Unable to load records";el("results").innerHTML='<tr><td colspan="4" class="hof-empty">'+esc(err.message||"Unknown error")+'</td></tr>';}
+async function render(){
+ const token=++request,category=el("category").value,species=el("species").value,activity=el("activity").value,only=el("display").value==="inducted";
+ el("activity-wrap").hidden=category!=="activity";
+ el("activity-column").textContent=category==="activity"?"Activity":"Breed";
+ el("heading").textContent=category==="activity"?(activity?(el("activity").selectedOptions[0]?.textContent||"Activity")+" Hall of Fame":"Activity Hall of Fame"):"Conformation Hall of Fame";
+ el("results").innerHTML='<tr><td colspan="4" class="hof-empty">Loading rankings...</td></tr>';
+ try{
+  const table=category==="activity"?"leaderboard_activity_cache":"leaderboard_animal_cache";
+  const pointField=category==="activity"?"activity_points":"conformation_points";
+  const fields=category==="activity"?"animal_id,animal_number,animal_name,species,breed,owner,activity_key,activity_name,activity_points":"animal_id,animal_number,animal_name,species,breed,owner,conformation_points";
+  let query=db.from(table).select(fields,{count:"exact"}).order(pointField,{ascending:false}).range(offset,offset+PAGE-1);
+  if(species)query=query.eq("species",species);
+  if(category==="activity"&&activity)query=query.eq("activity_key",activity);
+  if(only){
+   const eligible=inductions.filter(x=>x.category===category&&(!activity||category==="conformation"||x.activity_key===activity));
+   const ids=[...new Set(eligible.map(x=>x.animal_id))];
+   if(!ids.length){if(token!==request)return;display([],0,category,only);return;}
+   query=query.in("animal_id",ids.slice(0,1000));
+  }
+  const {data,error,count}=await query;if(error)throw error;if(token!==request)return;
+  const inducted=new Set(inductions.filter(x=>x.category===category).map(x=>x.animal_id+"|"+x.activity_key));
+  const rows=(data||[]).filter(x=>!only||inducted.has(x.animal_id+"|"+(category==="activity"?x.activity_key:"")));
+  display(rows,count||0,category,only,inducted);
+ }catch(err){if(token===request)showError(err);}
+}
+function display(rows,count,category,only,inducted=new Set()){
+ const threshold=category==="activity"?500:20001;
+ el("summary").textContent=only?"Permanent inductees · "+count.toLocaleString()+" matching cache records":"Showing "+(rows.length?offset+1:0)+"–"+(offset+rows.length)+" of "+count.toLocaleString()+" records · "+fmt(threshold)+" points to qualify";
+ el("prev").disabled=offset===0;el("next").disabled=offset+PAGE>=count;
+ el("results").innerHTML=rows.length?rows.map(x=>{
+  const key=category==="activity"?x.activity_key:"",earned=inducted.has(x.animal_id+"|"+key);
+  const pts=Number(category==="activity"?x.activity_points:x.conformation_points)||0;
+  const name=x.animal_name||"Animal #"+x.animal_number;
+  const detail=category==="activity"?(x.activity_name||x.activity_key):x.breed||"—";
+  return '<tr><td><a href="show-records.html?id='+encodeURIComponent(x.animal_number||"")+'">'+esc(name)+'</a><small>'+esc([x.species,x.breed,x.owner].filter(Boolean).join(" · "))+'</small></td><td>'+esc(detail)+'</td><td class="hof-score">'+fmt(pts)+'</td><td><span class="hof-status '+(earned?"earned":"")+'">'+(earned?"★ Inducted":pts>=threshold?"Eligible · Pending induction":"Not Yet")+'</span></td></tr>';
+ }).join(""):'<tr><td colspan="4" class="hof-empty">No records match these filters yet.</td></tr>';
+}
+["species","category","activity","display"].forEach(id=>el(id).addEventListener("change",()=>{offset=0;render();}));
+el("prev").addEventListener("click",()=>{offset=Math.max(0,offset-PAGE);render();});
+el("next").addEventListener("click",()=>{offset+=PAGE;render();});
+setup();
 </script></body></html>
