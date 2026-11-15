@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Show Standard — Hall of Fame</title>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<style>
+:root{color-scheme:dark;font-family:Arial,sans-serif}body{margin:0;background:#111827;color:#f3f4f6}main{max-width:1100px;margin:36px auto;padding:0 20px}h1{font-size:2.3rem;margin:8px 0}p{color:#aeb9ca}.toolbar{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0}.toolbar label{display:grid;gap:6px;font-size:.88rem;color:#cbd5e1}.toolbar select{min-width:190px;background:#1f2937;color:white;border:1px solid #475569;border-radius:8px;padding:11px}.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}.stat{padding:14px 20px;background:#1f2937;border-radius:10px}.stat strong{font-size:1.4rem;display:block}.entry{display:flex;justify-content:space-between;gap:20px;align-items:center;background:#1f2937;border:1px solid #374151;border-radius:12px;padding:18px;margin:10px 0}.entry a{color:#f9e4a5;font-weight:bold;text-decoration:none}.entry small{display:block;color:#aeb9ca;margin-top:7px}.points{text-align:right;font-weight:bold;white-space:nowrap}.empty{padding:30px;background:#1f2937;border-radius:12px;color:#cbd5e1}.sub{font-size:.95rem}.pill{display:inline-block;border:1px solid #6b7280;border-radius:20px;padding:4px 9px;font-size:.75rem;color:#e5e7eb;margin-top:7px}@media(max-width:600px){.entry{align-items:flex-start}.points{font-size:.85rem}}
+</style></head>
+<body><main><div class="sub">SHOW STANDARD · LIFETIME ACHIEVEMENTS</div><h1>🏆 Hall of Fame</h1><p>Permanent recognition for animals that have earned over 20,000 Conformation points or at least 500 points in an individual activity. An animal can belong to multiple halls.</p>
+<div class="toolbar"><label>Species<select id="species"><option value="">All species</option><option value="dog">Dogs</option><option value="cat">Cats</option><option value="horse">Horses</option></select></label>
+<label>Category<select id="category"><option value="conformation">Conformation</option><option value="activity">Activities</option></select></label>
+<label id="activity-wrap" hidden>Activity<select id="activity"><option value="">All activities</option></select></label></div>
+<div class="stats"><div class="stat"><strong id="count">—</strong><span>Inductions displayed</span></div></div><div id="results" class="empty">Loading Hall of Fame...</div></main>
+<script>
+const db=window.supabase.createClient("https://vyuklkrqusfvrcaqxmfm.supabase.co","sb_publishable_2LSbJafkRatck5Ei8HXL-g_0tezT6qu");
+const byId=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let all=[];
+async function fetchAll(table,select){let out=[];for(let start=0;;start+=1000){const {data,error}=await db.from(table).select(select).range(start,start+999);if(error)throw error;out.push(...(data||[]));if(!data||data.length<1000)break;}return out;}
+function render(){
+ const category=byId("category").value,species=byId("species").value,activity=byId("activity").value;
+ byId("activity-wrap").hidden=category!=="activity";
+ const entries=all.filter(x=>x.category===category&&(!species||x.animal?.species?.toLowerCase()===species)&&(category!=="activity"||!activity||x.activity_key===activity));
+ entries.sort((a,b)=>(b.current_points-a.current_points)||String(a.animal?.name||"").localeCompare(String(b.animal?.name||"")));
+ byId("count").textContent=entries.length.toLocaleString();
+ byId("results").className=entries.length?"":"empty";
+ byId("results").innerHTML=entries.length?entries.map(x=>{
+ const a=x.animal||{},label=x.category==="conformation"?"Conformation":x.activity_name||x.activity_key;
+ return '<article class="entry"><div><a href="show-records.html?id='+encodeURIComponent(a.animal_number||"")+'">'+esc(a.name||"Animal #"+a.animal_number)+'</a><small>'+esc([a.breed,a.species,a.owner].filter(Boolean).join(" · "))+'</small><span class="pill">'+esc(label)+' Hall of Fame</span><small>Inducted '+esc(new Date(x.inducted_at).toLocaleDateString())+'</small></div><div class="points">'+Number(x.current_points).toLocaleString()+' pts</div></article>';
+ }).join(""):'No animals have qualified for this Hall of Fame yet.';
+}
+async function load(){
+ try{
+ const [inductions,animals,conf,activities]=await Promise.all([
+  fetchAll("hall_of_fame_inductions","animal_id,category,activity_key,activity_name,points_at_induction,inducted_at"),
+  fetchAll("animals","id,animal_number,name,species,breed,owner"),
+  fetchAll("leaderboard_animal_cache","animal_id,conformation_points"),
+  fetchAll("leaderboard_activity_cache","animal_id,activity_key,activity_points")
+ ]);
+ const animalMap=new Map(animals.map(x=>[x.id,x])),confMap=new Map(conf.map(x=>[x.animal_id,x.conformation_points])),activityMap=new Map(activities.map(x=>[x.animal_id+"|"+x.activity_key,x.activity_points]));
+ all=inductions.map(x=>({...x,animal:animalMap.get(x.animal_id),current_points:(x.category==="conformation"?confMap.get(x.animal_id):activityMap.get(x.animal_id+"|"+x.activity_key))??x.points_at_induction}));
+ const keys=[...new Map(all.filter(x=>x.category==="activity").map(x=>[x.activity_key,x.activity_name||x.activity_key])).entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+ byId("activity").innerHTML='<option value="">All activities</option>'+keys.map(([k,n])=>'<option value="'+esc(k)+'">'+esc(n)+'</option>').join("");
+ render();
+ }catch(err){console.error(err);byId("results").className="empty";byId("results").textContent="Hall of Fame could not be loaded: "+err.message;}
+}
+["species","category","activity"].forEach(id=>byId(id).addEventListener("change",render));load();
+</script></body></html>
