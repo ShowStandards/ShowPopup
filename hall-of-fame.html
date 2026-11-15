@@ -30,11 +30,22 @@ function render(){
 }
 async function load(){
  try{
- const [inductions,animals,conf,activities]=await Promise.all([
-  fetchAll("hall_of_fame_inductions","animal_id,category,activity_key,activity_name,points_at_induction,inducted_at"),
-  fetchAll("animals","id,animal_number,name,species,breed,owner"),
-  fetchAll("leaderboard_animal_cache","animal_id,conformation_points"),
-  fetchAll("leaderboard_activity_cache","animal_id,activity_key,activity_points")
+ const inductions=await fetchAll("hall_of_fame_inductions","animal_id,category,activity_key,activity_name,points_at_induction,inducted_at");
+ if (!inductions.length) {all=[];render();return;}
+ const ids=[...new Set(inductions.map(x=>x.animal_id))];
+ const fetchForIds=async(table,fields)=>{
+   const result=[];
+   for(let i=0;i<ids.length;i+=100){
+     const {data,error}=await db.from(table).select(fields).in("animal_id",ids.slice(i,i+100));
+     if(error)throw error;
+     result.push(...(data||[]));
+   }
+   return result;
+ };
+ const [animals,conf,activities]=await Promise.all([
+  (async()=>{const result=[];for(let i=0;i<ids.length;i+=100){const {data,error}=await db.from("animals").select("id,animal_number,name,species,breed,owner").in("id",ids.slice(i,i+100));if(error)throw error;result.push(...(data||[]));}return result;})(),
+  fetchForIds("leaderboard_animal_cache","animal_id,conformation_points"),
+  fetchForIds("leaderboard_activity_cache","animal_id,activity_key,activity_points")
  ]);
  const animalMap=new Map(animals.map(x=>[x.id,x])),confMap=new Map(conf.map(x=>[x.animal_id,x.conformation_points])),activityMap=new Map(activities.map(x=>[x.animal_id+"|"+x.activity_key,x.activity_points]));
  all=inductions.map(x=>({...x,animal:animalMap.get(x.animal_id),current_points:(x.category==="conformation"?confMap.get(x.animal_id):activityMap.get(x.animal_id+"|"+x.activity_key))??x.points_at_induction}));
