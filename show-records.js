@@ -5539,7 +5539,7 @@ function collapseTeamActivityRecords(records) {
 function renderHallOfFamePanel(inducted, animal, currentPoints) {
   const rows = Array.isArray(inducted) ? inducted : [];
   if (!rows.length) {
-    return '<section class="panel"><h3 class="panel-title">Hall of Fame</h3><div class="empty">No Hall of Fame inductions yet. Earn over 20,000 Conformation points or reach 500 points in a single activity to qualify.</div></section>';
+    return '<section class="panel"><h3 class="panel-title">Hall of Fame</h3><p><a href="hall-of-fame.html">Browse the Show Standard Hall of Fame</a></p><div class="empty">No Hall of Fame inductions yet. Earn over 20,000 Conformation points or reach 500 points in a single activity to qualify.</div></section>';
   }
   const cards = rows.map(entry => {
     const isConf = entry.category === "conformation";
@@ -5552,7 +5552,7 @@ function renderHallOfFamePanel(inducted, animal, currentPoints) {
       '<div>Lifetime points: ' + shownPoints.toLocaleString() + ' · Inducted: ' + escapeHtml(inductedDate) + '</div>' +
       '</div>';
   }).join("");
-  return '<section class="panel"><h3 class="panel-title">Hall of Fame</h3><p>Permanent lifetime recognition</p>' + cards + '</section>';
+  return '<section class="panel"><h3 class="panel-title">Hall of Fame</h3><p>Permanent lifetime recognition · <a href="hall-of-fame.html">Browse all inductees</a></p>' + cards + '</section>';
 }
 
 function renderRecords(records, animal, titleRules, activityRules, activityTypes, totalRules, herdingRules, hofInductions, hofPoints) {
