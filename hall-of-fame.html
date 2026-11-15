@@ -55,9 +55,9 @@ function updateActivityOptions(){
  const selected=el("activity").value;
  const options=new Map();
  for(const row of activityOptions){
-  if(species && !(Array.isArray(row.species) && row.species.some(x=>String(x).toLowerCase()===species)))continue;
+  if(species && String(row.species||"").toLowerCase()!==species)continue;
   if(!row.activity_key)continue;
-  options.set(row.activity_key,row.display_name||row.activity_key);
+  options.set(row.activity_key,row.activity_name||row.activity_key);
  }
  const sorted=[...options.entries()].sort((a,b)=>a[1].localeCompare(b[1]));
  el("activity").innerHTML='<option value="">All Activities</option>'+sorted.map(([key,name])=>'<option value="'+esc(key)+'">'+esc(name)+'</option>').join("");
@@ -68,7 +68,7 @@ async function setup(){
   const [inductionRows,options]=await Promise.all([loadInductions(),(async()=>{
    let rows=[];
    for(let i=0;;i+=1000){
-    const {data,error}=await db.from("activity_types").select("species,activity_key,display_name,points_enabled").eq("points_enabled",true).range(i,i+999);
+    const {data,error}=await db.from("hall_of_fame_activity_options").select("species,activity_key,activity_name").range(i,i+999);
     if(error)throw error;
     rows.push(...(data||[]));
     if(!data||data.length<1000)break;
