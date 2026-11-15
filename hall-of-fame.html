@@ -45,19 +45,39 @@ body{padding:24px 14px 46px!important;font-family:'Quicksand',Arial,sans-serif}
 const db=window.supabase.createClient("https://vyuklkrqusfvrcaqxmfm.supabase.co","sb_publishable_2LSbJafkRatck5Ei8HXL-g_0tezT6qu");
 const el=id=>document.getElementById(id);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const PAGE=100;let offset=0,request=0,inductions=[],activityTypes=[];
+const PAGE=100;let offset=0,request=0,inductions=[],activityOptions=[];
 const fmt=n=>Number(n||0).toLocaleString();
 async function loadInductions(){
  let result=[];for(let i=0;;i+=1000){const {data,error}=await db.from("hall_of_fame_inductions").select("animal_id,category,activity_key,activity_name,points_at_induction,inducted_at").range(i,i+999);if(error)throw error;result.push(...(data||[]));if(!data||data.length<1000)break;}return result;
 }
+function updateActivityOptions(){
+ const species=el("species").value;
+ const selected=el("activity").value;
+ const options=new Map();
+ for(const row of activityOptions){
+  if(species && String(row.species||"").toLowerCase()!==species)continue;
+  if(!row.activity_key)continue;
+  options.set(row.activity_key,row.activity_name||row.activity_key);
+ }
+ const sorted=[...options.entries()].sort((a,b)=>a[1].localeCompare(b[1]));
+ el("activity").innerHTML='<option value="">All Activities</option>'+sorted.map(([key,name])=>'<option value="'+esc(key)+'">'+esc(name)+'</option>').join("");
+ if(options.has(selected))el("activity").value=selected;
+}
 async function setup(){
  try{
-  const [inductionRows,typeRows]=await Promise.all([loadInductions(),db.from("activity_types").select("activity_key,display_name,points_enabled,active").eq("points_enabled",true)]);
-  if(typeRows.error)throw typeRows.error;
-  inductions=inductionRows;activityTypes=(typeRows.data||[]).filter(x=>x.activity_key);
-  const map=new Map(activityTypes.map(x=>[x.activity_key,x.display_name||x.activity_key]));
-  for(const x of inductions.filter(x=>x.category==="activity"))if(!map.has(x.activity_key))map.set(x.activity_key,x.activity_name||x.activity_key);
-  el("activity").innerHTML='<option value="">All Activities</option>'+[...map].sort((a,b)=>a[1].localeCompare(b[1])).map(([key,name])=>'<option value="'+esc(key)+'">'+esc(name)+'</option>').join("");
+  const [inductionRows,options]=await Promise.all([loadInductions(),(async()=>{
+   let rows=[];
+   for(let i=0;;i+=1000){
+    const {data,error}=await db.from("hall_of_fame_activity_options").select("species,activity_key,activity_name").range(i,i+999);
+    if(error)throw error;
+    rows.push(...(data||[]));
+    if(!data||data.length<1000)break;
+   }
+   return rows;
+  })()]);
+  inductions=inductionRows;
+  activityOptions=options;
+  updateActivityOptions();
   await render();
  }catch(err){showError(err);}
 }
@@ -99,7 +119,7 @@ function display(rows,count,category,only,inducted=new Set()){
   return '<tr><td><a href="show-records.html?id='+encodeURIComponent(x.animal_number||"")+'">'+esc(name)+'</a><small>'+esc([x.species,x.breed,x.owner].filter(Boolean).join(" · "))+'</small></td><td>'+esc(detail)+'</td><td class="hof-score">'+fmt(pts)+'</td><td><span class="hof-status '+(earned?"earned":"")+'">'+(earned?"★ Inducted":pts>=threshold?"Eligible · Pending induction":"Not Yet")+'</span></td></tr>';
  }).join(""):'<tr><td colspan="4" class="hof-empty">No records match these filters yet.</td></tr>';
 }
-["species","category","activity","display"].forEach(id=>el(id).addEventListener("change",()=>{offset=0;render();}));
+["species","category","activity","display"].forEach(id=>el(id).addEventListener("change",()=>{if(id==="species")updateActivityOptions();offset=0;render();}));
 el("prev").addEventListener("click",()=>{offset=Math.max(0,offset-PAGE);render();});
 el("next").addEventListener("click",()=>{offset+=PAGE;render();});
 setup();
