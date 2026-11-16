@@ -5023,6 +5023,15 @@ function calculateSpanielClubTitles(records, animal) {
   )).size;
   const bisCount = uniqueSpanielCount(clubRecords, isSpanielBIS, "bis");
   const challengeQs = uniqueSpanielCount(clubRecords, isSpanielChallengeQualification, "challenge");
+  const qualifiedChallenges = [...new Set(clubRecords
+    .filter(isSpanielChallengeQualification)
+    .map(r => normalizeKey(r?.class || r?.score_label || "")
+      .replace(/^spaniel club\s*[-:]?\s*challenge\s*[-:]?\s*/, "")
+      .replace(/\s+challenge\s*$/, "")
+      .trim())
+    .filter(Boolean))];
+  const distinctChallengeCount = qualifiedChallenges.length;
+
 
   // Spaniel Club CLASS TYPE is independent of breed division.
   // These six activities are Working Classes for every Spaniel.
@@ -5078,8 +5087,8 @@ function calculateSpanielClubTitles(records, animal) {
     "complete-spaniel-challenge-win"
   );
 
-  const dpsEarned = division !== "unknown" && bobCount >= 1 && primaryCount >= 1 && challengeQs >= 2;
-  const vtsEarned = division !== "unknown" && bobCount >= 3 && primaryCount >= 3 && secondaryFamilies.length >= 1 && challengeQs >= 3;
+  const dpsEarned = division !== "unknown" && bobCount >= 1 && primaryCount >= 1 && challengeQs >= 2 && distinctChallengeCount >= 2;
+  const vtsEarned = division !== "unknown" && bobCount >= 3 && primaryCount >= 3 && secondaryFamilies.length >= 1 && challengeQs >= 3 && distinctChallengeCount >= 2;
   const cspEarned = dpsEarned && vtsEarned && bisCount >= 1 && completeChallengeWins >= 1;
 
   const prefixes = [];
@@ -5124,6 +5133,7 @@ function calculateSpanielClubTitles(records, animal) {
       bobCount,
       bisCount,
       challengeQs,
+      distinctChallengeCount,
       primaryCount,
       secondaryFamilies,
       dpsEarned,
@@ -5181,9 +5191,9 @@ function renderSpanielClubProgress(records, animal) {
       `${p.primaryCount} / 1`
     ),
     spanielProgressRow(
-      p.challengeQs >= 2,
-      "Different Challenge Classes",
-      `${p.challengeQs} / 2`
+      p.challengeQs >= 2 && p.distinctChallengeCount >= 2,
+      "Challenge qualifications (2 different classes)",
+      `${p.challengeQs} Qs · ${p.distinctChallengeCount} / 2 different`
     )
   ];
 
@@ -5200,9 +5210,9 @@ function renderSpanielClubProgress(records, animal) {
       `${p.secondaryFamilies.length} / 1`
     ),
     spanielProgressRow(
-      p.challengeQs >= 3,
-      "Different Challenge Classes",
-      `${p.challengeQs} / 3`
+      p.challengeQs >= 3 && p.distinctChallengeCount >= 2,
+      "Challenge qualifications (2 different classes)",
+      `${p.challengeQs} / 3 Qs · ${p.distinctChallengeCount} / 2 different`
     )
   ];
 
