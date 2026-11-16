@@ -4615,19 +4615,35 @@ function spanielDivision(records, animal) {
 
 function spanielActivityFamily(record) {
   const key = normalizeKey(record?.activity_key);
-  const text = normalizeKey([record?.class, record?.score_label, record?.association_event_type].filter(Boolean).join(" "));
-  const combined = `${key} ${text}`;
+  const classText = normalizeKey(record?.class);
+  const eventType = normalizeKey(record?.association_event_type);
+  const combined = [key, classText, normalizeKey(record?.score_label)].join(" ");
 
-  if (/\bretriev/.test(combined)) return "retrieving";
-  if (/\bhunting\b/.test(combined)) return "hunting";
-  if (/\bfalconry\b/.test(combined)) return "falconry";
-  if (/\bshed\s*dog\b/.test(combined) || /\bsheddog\b/.test(combined)) return "shed dog";
-  if (/\btracking\b/.test(combined)) return "tracking";
-  if (/\bscent\s*work\b/.test(combined) || /\bscentwork\b/.test(combined)) return "scent work";
+  // The Spaniel Club uploader records Companion vs Working explicitly.
+  // Trust that classification before matching activity names: Air Retrieve
+  // must never be mistaken for Working Retrieving.
+  if (eventType === "companion" || eventType === "companion class" || eventType === "companion classes") {
+    return key && key !== "activity" && key !== "activities" ? key : classText || "companion";
+  }
+  if (eventType === "working" || eventType === "working class" || eventType === "working classes") {
+    if (/\\bfalconry\\b/.test(combined)) return "falconry";
+    if (/\\bshed\\s*dog\\b/.test(combined) || /\\bsheddog\\b/.test(combined)) return "shed dog";
+    if (/\\btracking\\b/.test(combined)) return "tracking";
+    if (/\\bscent[ _-]*work\\b/.test(combined)) return "scent work";
+    if (/\\bhunting\\b/.test(combined)) return "hunting";
+    if (/\\bretriev/.test(combined)) return "retrieving";
+    return key || null;
+  }
 
-  // Other offered activities remain eligible for the VtS secondary-activity requirement.
-  if (key && key !== "activity" && key !== "activities") return key;
-  return null;
+  // Fallback for older records without an explicit event classification.
+  if (/\\bair[ _-]*retriev/.test(combined)) return "air_retrieve";
+  if (/\\bfalconry\\b/.test(combined)) return "falconry";
+  if (/\\bshed\\s*dog\\b/.test(combined) || /\\bsheddog\\b/.test(combined)) return "shed dog";
+  if (/\\btracking\\b/.test(combined)) return "tracking";
+  if (/\\bscent[ _-]*work\\b/.test(combined)) return "scent work";
+  if (/\\bhunting\\b/.test(combined)) return "hunting";
+  if (/\\bretriev/.test(combined)) return "retrieving";
+  return key && key !== "activity" && key !== "activities" ? key : null;
 }
 
 function spanielEntryCount(record) {
