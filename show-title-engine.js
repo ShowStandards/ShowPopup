@@ -4721,6 +4721,18 @@ function calculateSpanielClubTitles(records, animal) {
   )).size;
   const bisCount = uniqueSpanielCount(clubRecords, isSpanielBIS, "bis");
   const challengeQs = uniqueSpanielCount(clubRecords, isSpanielChallengeQualification, "challenge");
+  // Challenge qualifications must span at least two DISTINCT challenges.
+  // Repeated Qs in Handler Partnership, for example, do not satisfy this alone.
+  const challengeQualifiedRecords = clubRecords.filter(isSpanielChallengeQualification);
+  const challengeFamilies = [...new Set(challengeQualifiedRecords.map(r => {
+    const raw = String(r?.class || r?.score_label || "").trim();
+    return normalizeKey(raw)
+      .replace(/^spaniel club\s*[-:]?\s*challenge\s*[-:]?\s*/, "")
+      .replace(/\s+challenge\s*$/, "")
+      .trim();
+  }).filter(Boolean))];
+  const challengeVarietyMet = challengeFamilies.length >= 2;
+
 
   // Spaniel Club CLASS TYPE is independent of breed division.
   // These six activities are Working Classes for every Spaniel.
@@ -4755,8 +4767,8 @@ function calculateSpanielClubTitles(records, animal) {
 
   const secondaryFamilies = [...new Set(secondaryQualifiers.map(spanielActivityFamily).filter(Boolean))];
 
-  const dpsEarned = division !== "unknown" && bobCount >= 1 && primaryCount >= 1 && challengeQs >= 2;
-  const vtsEarned = division !== "unknown" && bobCount >= 3 && primaryCount >= 3 && secondaryFamilies.length >= 1 && challengeQs >= 3;
+  const dpsEarned = division !== "unknown" && bobCount >= 1 && primaryCount >= 1 && challengeQs >= 2 && challengeVarietyMet;
+  const vtsEarned = division !== "unknown" && bobCount >= 3 && primaryCount >= 3 && secondaryFamilies.length >= 1 && challengeQs >= 3 && challengeVarietyMet;
   const cspEarned = dpsEarned && vtsEarned && bisCount >= 1;
 
   const prefixes = [];
@@ -4779,7 +4791,7 @@ function calculateSpanielClubTitles(records, animal) {
     rows.push({
       titleName: "Versatile Spaniel",
       titleCode: "VtS",
-      count: `${bobCount} BOB | ${primaryCount} primary placements | ${secondaryFamilies.length} other activity | ${challengeQs} Challenge Qs`,
+      count: `${bobCount} BOB | ${primaryCount} primary placements | ${secondaryFamilies.length} other activity | ${challengeQs} Challenge Qs in ${challengeFamilies.length} different challenges`,
       sort: 875
     });
   } else if (dpsEarned) {
@@ -4787,7 +4799,7 @@ function calculateSpanielClubTitles(records, animal) {
     rows.push({
       titleName: "Dual Purpose Spaniel",
       titleCode: "DpS",
-      count: `${bobCount} BOB | ${primaryCount} primary placements | ${challengeQs} Challenge Qs`,
+      count: `${bobCount} BOB | ${primaryCount} primary placements | ${challengeQs} Challenge Qs in ${challengeFamilies.length} different challenges`,
       sort: 876
     });
   }
@@ -4801,6 +4813,8 @@ function calculateSpanielClubTitles(records, animal) {
       bobCount,
       bisCount,
       challengeQs,
+      challengeFamilies,
+      challengeVarietyMet,
       primaryCount,
       secondaryFamilies,
       dpsEarned,
@@ -4832,14 +4846,14 @@ function renderSpanielClubProgress(records, animal) {
         <h4>Dual Purpose Spaniel (DpS)</h4>
         ${spanielCheck(p.bobCount >= 1, `Best of Breed: ${p.bobCount}/1`)}
         ${spanielCheck(p.primaryCount >= 1, `${primaryLabel} placements (1st-3rd, 6+ dogs): ${p.primaryCount}/1`)}
-        ${spanielCheck(p.challengeQs >= 2, `Challenge Class qualifications: ${p.challengeQs}/2`)}
+        ${spanielCheck(p.challengeQs >= 2 && p.challengeVarietyMet, `Challenge Class qualifications: ${p.challengeQs}/2 · Different challenges: ${p.challengeFamilies.length}/2`)}
       </div>
       <div class="club-progress-card">
         <h4>Versatile Spaniel (VtS)</h4>
         ${spanielCheck(p.bobCount >= 3, `Best of Breed: ${p.bobCount}/3`)}
         ${spanielCheck(p.primaryCount >= 3, `${primaryLabel} placements (1st-3rd, 6+ dogs): ${p.primaryCount}/3`)}
         ${spanielCheck(p.secondaryFamilies.length >= 1, `Other offered activity placement: ${p.secondaryFamilies.length}/1`)}
-        ${spanielCheck(p.challengeQs >= 3, `Challenge Class qualifications: ${p.challengeQs}/3`)}
+        ${spanielCheck(p.challengeQs >= 3 && p.challengeVarietyMet, `Challenge Class qualifications: ${p.challengeQs}/3 · Different challenges: ${p.challengeFamilies.length}/2`)}
       </div>
       <div class="club-progress-card">
         <h4>Complete Spaniel (CSp)</h4>
