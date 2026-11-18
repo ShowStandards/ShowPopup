@@ -2326,7 +2326,13 @@ function calculateIcelandicAssociationTitles(records, animal) {
 
   const halterPoints = pointsFor("halter");
   const gaitingPoints = pointsFor("gaiting");
-  const breedingPoints = pointsFor("breeding");
+  // IHASS breeding title points are the judged scores, not Show Standard points.
+  const breedingPoints = ihass
+    .filter(record => normalizeKey(record?.association_event_type) === "breeding")
+    .reduce((sum, record) => {
+      const score = Number(record?.score);
+      return sum + (Number.isFinite(score) ? score : 0);
+    }, 0);
 
   const breedingCertificates = ihass.filter(record =>
     normalizeKey(record?.association_event_type) === "breeding" &&
