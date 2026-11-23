@@ -2484,7 +2484,7 @@ const SS_HUNTING_TITLE_DEFS = {
   ratting:{label:'Ratting',code:'Rat',specializations:{barn:['Barn','b'],farmyard:['Farmyard','f'],stack_den:['Stack / Den','s'],urban:['Urban','u']}},
   versatile:{label:'Versatile Hunting',code:'VH',specializations:{upland:['Upland','u'],waterfowl:['Waterfowl','w'],woodland:['Woodland','f'],mixed_field:['Mixed Field','m']}},
   coursing:{label:'Coursing',code:'Co',specializations:{rabbit:['Rabbit','r'],hare:['Hare','h'],fox:['Fox','f'],coyote_jackal:['Coyote / Jackal','c'],deer_gazelle:['Deer / Gazelle','d']}},
-  falconry:{label:'Falconry',code:'Fa',specializations:{rabbit:['Rabbit','r'],hare:['Hare','h'],pheasant:['Pheasant','p'],grouse:['Grouse','g'],quail:['Quail','q'],waterfowl:['Waterfowl','w']}},
+  falconry:{label:'Falconry',code:'Fc',specializations:{rabbit:['Rabbit','r'],hare:['Hare','h'],pheasant:['Pheasant','p'],grouse:['Grouse','Gr'],quail:['Quail','q'],waterfowl:['Waterfowl','w']}},
   pack_hunting:{label:'Pack Hunting',code:'PH',specializations:{rabbit:['Rabbit','r'],hare:['Hare','h'],fox:['Fox','f'],coyote_jackal:['Coyote / Jackal','c'],boar:['Boar','b'],deer:['Deer','d']}},
   catch_dogs:{label:'Catch Dogs',code:'CD',specializations:{boar:['Boar','b'],cattle:['Cattle','c']}},
   tolling:{label:'Tolling',code:'Tl',specializations:{waterfowl:['Waterfowl','w']}},
